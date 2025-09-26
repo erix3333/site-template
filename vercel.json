@@ -1,0 +1,10 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/pages/:path", "destination": "/pages/:path.html" },
+    { "source": "/pages/:path/", "destination": "/pages/:path.html" }
+  ],
+  "redirects": [
+    { "source": "/index", "destination": "/", "permanent": true }
+  ]
+}
