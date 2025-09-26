@@ -1,16 +1,9 @@
 {
-  "name": "shop",
+  "name": "your-shop",
   "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "vercel dev",
-    "build": "echo \"static\"",
-    "start": "vercel dev"
-  },
+  "version": "1.0.0",
+  "description": "Static shop with Stripe Checkout",
   "dependencies": {
-    "stripe": "^12.17.0"
-  },
-  "devDependencies": {
-    "vercel": "^39.0.0"
+    "stripe": "^16.6.0"
   }
 }
