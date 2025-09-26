@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Shop Name — Template</title>
+  <meta name="description" content="Minimal Shop Name template with product listing, cart, filters, and email checkout." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+  <meta property="og:title" content="Shop Name — Template">
+  <meta property="og:description" content="Minimal online shop template: products, filters, cart, and easy publishing.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://example.com/">
+  <meta property="og:image" content="images/og-placeholder.png">
+  <link rel="icon" href="images/favicon.png">
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+  <header class="site-header" aria-label="Header">
+    <div class="wrap header-inner">
+
+      <a class="brand" href="index.html" aria-label="Go to home">
+        <img id="brandLogo" src="images/logo.png" alt="Store logo" />
+        <span id="brandName">Shop Name</span>
+      </a>
+
+      <nav class="main-nav" aria-label="Primary">
+        <a href="index.html">Home</a>
+        <a href="#products">Shop</a>
+        <a href="pages/about.html">About</a>
+        <a href="pages/contact.html">Contact</a>
+
+        <div class="dropdown">
+          <button class="btn nav-btn" aria-haspopup="true" aria-expanded="false">More ▾</button>
+          <div class="dropdown-menu" role="menu">
+            <a href="pages/faq.html" role="menuitem">FAQ</a>
+            <a href="pages/shipping-returns.html" role="menuitem">Shipping & Returns</a>
+            <a href="pages/privacy.html" role="menuitem">Privacy Policy</a>
+            <a href="pages/terms.html" role="menuitem">Terms of Service</a>
+            <a href="pages/track-order.html" role="menuitem">Track Order</a>
+            <a href="pages/account.html" role="menuitem">Account</a>
+            <a href="pages/support.html" role="menuitem">Support</a>
+          </div>
+        </div>
+      </nav>
+
+      <form class="searchbar" role="search" onsubmit="return false">
+        <label class="sr-only" for="q">Search products</label>
+        <input id="q" type="search" placeholder="Search products…" autocomplete="off" />
+        <button class="btn" id="clearSearch" type="button" title="Clear">Clear</button>
+      </form>
+
+      <div class="toolbar">
+        <button class="icon-btn" id="openMenu" aria-label="Open menu" aria-controls="navDrawer" aria-expanded="false">
+          <span class="hamburger" aria-hidden="true"></span>
+        </button>
+
+        <button class="btn primary" id="openCart" aria-label="Open cart">Cart (<span id="cartCount">0</span>)</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="hero" aria-label="Intro">
+    <div class="wrap hero-inner">
+      <div class="hero-copy">
+        <h1>Build your store in minutes</h1>
+        <p class="lead">Clean, monochrome template focused on clarity and speed. Edit text, images and prices, then publish anywhere.</p>
+        <div class="actions">
+          <a href="#products" class="btn primary">Browse products</a>
+          <a href="#about" class="btn">Learn more</a>
+        </div>
+      </div>
+      <div class="hero-art" aria-hidden="true"></div>
+    </div>
+  </section>
+
+  <main id="main">
+    <div class="wrap layout">
+      <!-- Filters sidebar (kept) -->
+      <aside class="sidebar" id="filters" aria-label="Filters">
+        <div class="panel stack">
+          <h3>Quick filter</h3>
+          <label>
+            <span class="label">Category</span>
+            <select id="category">
+              <option value="">All categories</option>
+            </select>
+          </label>
+          <label>
+            <span class="label">Max price (EUR)</span>
+            <input id="maxPrice" type="number" min="0" step="0.01" placeholder="e.g. 50" />
+          </label>
+          <button class="btn" id="applyFilters" type="button">Apply</button>
+          <button class="btn" id="resetFilters" type="button">Reset</button>
+        </div>
+        <div class="panel">
+          <small class="muted">Monochrome by default for fast future theming.</small>
+        </div>
+      </aside>
+
+      <!-- Product list -->
+      <section class="content" aria-label="Product list">
+        <div class="content-bar">
+          <div class="muted" id="resultInfo">Showing all products</div>
+          <label class="sorter">
+            Sort
+            <select id="sort">
+              <option value="relevance">Default</option>
+              <option value="priceAsc">Price ↑</option>
+              <option value="priceDesc">Price ↓</option>
+              <option value="titleAsc">Name A–Z</option>
+            </select>
+          </label>
+        </div>
+        <div id="products" class="grid" aria-live="polite"></div>
+      </section>
+    </div>
+  </main>
+
+  <!-- BENEFITS STRIP -->
+  <section class="benefits">
+    <div class="wrap benefits-grid" role="list">
+      <div class="benefit" role="listitem">
+        <span class="bicon" aria-hidden="true">🛠️</span>
+        <div>
+          <div class="btitle">Support makers</div>
+          <p>All products are made in-house by our team.</p>
+        </div>
+      </div>
+      <div class="benefit" role="listitem">
+        <span class="bicon" aria-hidden="true">✒️</span>
+        <div>
+          <div class="btitle">Original design</div>
+          <p>Own designs and collaborations bring you unique pieces.</p>
+        </div>
+      </div>
+      <div class="benefit" role="listitem">
+        <span class="bicon" aria-hidden="true">📦</span>
+        <div>
+          <div class="btitle">Free shipping</div>
+          <p>Free EU shipping on orders over €65.</p>
+        </div>
+      </div>
+      <div class="benefit" role="listitem">
+        <span class="bicon" aria-hidden="true">🎁</span>
+        <div>
+          <div class="btitle">Quality guaranteed</div>
+          <p>We stand by what we make. Not happy? We’ll make it right.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer rich-footer" id="about" aria-label="Footer">
+    <div class="wrap footer-columns">
+      <!-- Newsletter -->
+      <section class="fcol">
+        <h4 class="fover">Get 15% off your next order</h4>
+        <p class="muted">Sign up for launches, tips, and weekly updates. You’ll also get a 15% off code.</p>
+        <form id="newsletterForm" class="newsletter" onsubmit="return false" aria-label="Newsletter signup">
+          <label class="sr-only" for="nlEmail">Your email</label>
+          <input id="nlEmail" type="email" required placeholder="Your e-mail" autocomplete="email" />
+          <button class="btn primary" id="nlSubmit" aria-label="Subscribe">→</button>
+        </form>
+      </section>
+
+      <!-- Columns -->
+      <nav class="fcol" aria-label="Customer care">
+        <h5>Customer Care</h5>
+        <ul class="flist">
+          <li><a href="pages/track-order.html">Track Order</a></li>
+          <li><a href="pages/shipping-returns.html">Shipping</a></li>
+          <li><a href="pages/shipping-returns.html#returns">Returns</a></li>
+          <li><a href="pages/contact.html">Contact</a></li>
+        </ul>
+      </nav>
+
+      <nav class="fcol" aria-label="Support">
+        <h5>Support</h5>
+        <ul class="flist">
+          <li><a href="pages/faq.html">FAQ</a></li>
+          <li><a href="pages/support.html">Help Center</a></li>
+          <li><a href="pages/privacy.html">Privacy Policy</a></li>
+          <li><a href="pages/terms.html">Terms of Service</a></li>
+        </ul>
+      </nav>
+
+      <nav class="fcol" aria-label="Partnerships">
+        <h5>Partnerships</h5>
+        <ul class="flist">
+          <li><a href="pages/account.html">Wholesale</a></li>
+          <li><a href="pages/support.html#collabs">Collaborations</a></li>
+        </ul>
+        <h5 style="margin-top:14px">Follow us</h5>
+        <div class="socials" role="group" aria-label="Social links">
+          <a class="sbtn" href="#" aria-label="Facebook">f</a>
+          <a class="sbtn" href="#" aria-label="Instagram">ig</a>
+          <a class="sbtn" href="#" aria-label="Pinterest">p</a>
+          <a class="sbtn" href="#" aria-label="TikTok">tt</a>
+        </div>
+      </nav>
+    </div>
+
+    <div class="wrap footbar">
+      <div class="foot-left">
+        <label class="currency">
+          <span class="sr-only">Currency</span>
+          <select id="currency">
+            <option value="EUR">EUR €</option>
+            <option value="USD">USD $</option>
+            <option value="GBP">GBP £</option>
+          </select>
+        </label>
+        <span>© <span id="year"></span> <span id="brandNameFooter">Shop Name</span></span>
+      </div>
+      <div class="foot-right">
+        <span class="muted">We accept</span>
+        <ul class="paylist" aria-label="Payment methods">
+          <li>AmEx</li><li>Apple Pay</li><li>Discover</li><li>G Pay</li>
+          <li>PayPal</li><li>Shop Pay</li><li>Visa</li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Shared overlay -->
+  <div class="overlay" id="overlay" aria-hidden="true"></div>
+
+  <!-- Cart drawer (right) -->
+  <aside class="drawer" id="cartDrawer" aria-label="Shopping cart" aria-hidden="true">
+    <header>
+      <strong>Cart</strong>
+      <button class="btn" id="closeCart" aria-label="Close cart">Close</button>
+    </header>
+    <div class="body" id="cartItems"></div>
+    <footer>
+      <div class="row"><span>Total</span><strong id="cartTotal">€0.00</strong></div>
+      <div id="checkoutArea"></div>
+    </footer>
+  </aside>
+
+  <!-- Nav drawer (left) -->
+  <aside class="drawer left" id="navDrawer" aria-label="Site navigation" aria-hidden="true">
+    <header>
+      <strong>Menu</strong>
+      <button class="btn" id="closeMenu" aria-label="Close menu">Close</button>
+    </header>
+    <nav class="body" role="menu">
+      <a class="navlink" role="menuitem" href="index.html">Home</a>
+      <a class="navlink" role="menuitem" href="#products">Shop</a>
+      <a class="navlink" role="menuitem" href="pages/about.html">About</a>
+      <a class="navlink" role="menuitem" href="pages/contact.html">Contact</a>
+      <hr />
+      <a class="navlink" role="menuitem" href="pages/faq.html">FAQ</a>
+      <a class="navlink" role="menuitem" href="pages/shipping-returns.html">Shipping & Returns</a>
+      <a class="navlink" role="menuitem" href="pages/privacy.html">Privacy Policy</a>
+      <a class="navlink" role="menuitem" href="pages/terms.html">Terms of Service</a>
+      <a class="navlink" role="menuitem" href="pages/track-order.html">Track Order</a>
+      <a class="navlink" role="menuitem" href="pages/account.html">Account</a>
+      <a class="navlink" role="menuitem" href="pages/support.html">Support</a>
+    </nav>
+  </aside>
+
+  <!-- Product modal -->
+  <div class="modal" id="productModal" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-media" id="pmMedia"></div>
+      <div class="modal-body">
+        <h2 id="pmTitle">Product title</h2>
+        <div class="muted" id="pmCategory"></div>
+        <div id="pmPrice" class="price">€0.00</div>
+        <p id="pmDesc" class="muted">Short description.</p>
+        <div class="modal-actions">
+          <label> Quantity
+            <input id="pmQty" type="number" min="1" value="1" class="qty-input" />
+          </label>
+          <button class="btn primary" id="pmAdd">Add to cart</button>
+          <button class="btn" id="pmClose">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

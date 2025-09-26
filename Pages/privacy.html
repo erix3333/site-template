@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Privacy — Monochrome Shop</title>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body>
+  <header class="site-header" aria-label="Header">
+    <div class="wrap header-inner" role="navigation">
+      <a class="brand" href="../index.html" aria-label="Go to home">
+        <img id="brandLogo" src="../images/logo.png" alt="Store logo" />
+        <span id="brandName">Monochrome Shop</span>
+      </a>
+
+      <nav class="main-nav" aria-label="Primary">
+        <a href="../index.html">Home</a>
+        <a href="../index.html#products">Shop</a>
+        <a href="about.html">About</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+
+      <div class="toolbar">
+        <!-- same hamburger + cart so behavior is consistent -->
+        <button class="icon-btn" id="openMenu" aria-label="Open menu" aria-controls="navDrawer" aria-expanded="false">
+          <span class="hamburger" aria-hidden="true"></span>
+        </button>
+        <a class="btn" href="../index.html#products">Back to shop</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap" style="padding:28px 0">
+    <article class="panel" style="max-width:900px">
+      <h1>Privacy</h1>
+      <p class="muted">Write your Privacy content here.</p>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <div>© <span id="year"></span> Monochrome Shop — Template</div>
+      <div class="muted">Created to be quickly customized.</div>
+    </div>
+  </footer>
+
+  <!-- Shared overlay + NAV drawer (left) -->
+  <div class="overlay" id="overlay" aria-hidden="true"></div>
+  <aside class="drawer left" id="navDrawer" aria-label="Site navigation" aria-hidden="true">
+    <header>
+      <strong>Menu</strong>
+      <button class="btn" id="closeMenu" aria-label="Close menu">Close</button>
+    </header>
+    <nav class="body" role="menu">
+      <a class="navlink" role="menuitem" href="../index.html">Home</a>
+      <a class="navlink" role="menuitem" href="../index.html#products">Shop</a>
+      <a class="navlink" role="menuitem" href="about.html">About</a>
+      <a class="navlink" role="menuitem" href="contact.html">Contact</a>
+      <hr />
+      <a class="navlink" role="menuitem" href="faq.html">FAQ</a>
+      <a class="navlink" role="menuitem" href="shipping-returns.html">Shipping & Returns</a>
+      <a class="navlink" role="menuitem" href="privacy.html">Privacy Policy</a>
+      <a class="navlink" role="menuitem" href="terms.html">Terms of Service</a>
+      <a class="navlink" role="menuitem" href="track-order.html">Track Order</a>
+      <a class="navlink" role="menuitem" href="account.html">Account</a>
+      <a class="navlink" role="menuitem" href="support.html">Support</a>
+    </nav>
+  </aside>
+
+  <script src="../app.js"></script>
+  <script>
+    // Basic page bootstrapping
+    document.getElementById('year').textContent = new Date().getFullYear();
+    const brandName = document.getElementById('brandName');
+    if (brandName) brandName.textContent = 'Monochrome Shop';
+  </script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Page not found — Monochrome Shop</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+  <header class="site-header"><div class="wrap header-inner">
+    <a class="brand" href="index.html"><img id="brandLogo" src="images/logo.png" alt="Store logo"/><span id="brandName">Monochrome Shop</span></a>
+    <div class="toolbar">
+      <button class="icon-btn" id="openMenu" aria-label="Open menu" aria-controls="navDrawer" aria-expanded="false"><span class="hamburger" aria-hidden="true"></span></button>
+      <a class="btn" href="index.html#products">Back to shop</a>
+    </div>
+  </div></header>
+
+  <main id="main" class="wrap" style="padding:28px 0">
+    <article class="panel" style="max-width:760px">
+      <h1>We can’t find that page.</h1>
+      <p class="muted">The link might be broken or the page was moved.</p>
+      <p><a class="btn" href="index.html">Go to Home</a></p>
+    </article>
+  </main>
+
+  <div class="overlay" id="overlay" aria-hidden="true"></div>
+  <aside class="drawer left" id="navDrawer" aria-label="Site navigation" aria-hidden="true">
+    <header><strong>Menu</strong><button class="btn" id="closeMenu">Close</button></header>
+    <nav class="body">
+      <a class="navlink" href="index.html">Home</a>
+      <a class="navlink" href="index.html#products">Shop</a>
+      <a class="navlink" href="pages/about.html">About</a>
+      <a class="navlink" href="pages/contact.html">Contact</a>
+    </nav>
+  </aside>
+
+  <script src="app.js"></script>
+</body>
+</html>

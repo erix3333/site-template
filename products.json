@@ -1,0 +1,7 @@
+[
+    { "id": "p-001", "title": "Minimalist T-shirt", "price": 19.99, "currency": "EUR", "image": "", "category": "Clothing", "excerpt": "Regular fit, extra comfort.", "description": "100% cotton t-shirt." },
+    { "id": "p-002", "title": "Ceramic Mug", "price": 9.50, "currency": "EUR", "image": "", "category": "Accessories", "excerpt": "Clean design, perfect for the office.", "description": "350ml mug, dishwasher safe." },
+    { "id": "p-003", "title": "Classic Hoodie", "price": 39.00, "currency": "EUR", "image": "", "category": "Clothing", "excerpt": "Unisex, perfect for everyday wear.", "description": "Soft, warm, versatile." },
+    { "id": "p-004", "title": "A5 Notebook", "price": 7.90, "currency": "EUR", "image": "", "category": "Stationery", "excerpt": "For notes and planning.", "description": "90gsm paper, hardcover." }
+  ]
+  

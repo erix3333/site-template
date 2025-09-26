@@ -1,0 +1,16 @@
+{
+  "name": "shop",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo \"static\"",
+    "start": "vercel dev"
+  },
+  "dependencies": {
+    "stripe": "^12.17.0"
+  },
+  "devDependencies": {
+    "vercel": "^39.0.0"
+  }
+}

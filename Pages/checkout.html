@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Checkout — Shop Name</title>
+  <link rel="stylesheet" href="../styles.css" />
+  <script src="https://js.stripe.com/v3/"></script>
+</head>
+<body>
+  <header class="site-header" aria-label="Header">
+    <div class="wrap header-inner">
+      <a class="brand" href="../index.html">
+        <img id="brandLogo" src="../images/logo.png" alt="Store logo" />
+        <span id="brandName">Shop Name</span>
+      </a>
+      <div class="toolbar">
+        <a class="btn" href="../index.html#products">Continue shopping</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap checkout" id="main">
+    <nav class="stepper" aria-label="Checkout progress">
+      <div class="step current"><span>1</span><b>Information</b></div>
+      <div class="step"><span>2</span><b>Shipping & Payment</b></div>
+      <div class="step"><span>3</span><b>Review</b></div>
+    </nav>
+
+    <div class="checkout-grid">
+      <section class="panel luxe-card">
+        <form id="checkoutForm" class="stack" novalidate>
+          <h2 class="section-title">Contact</h2>
+          <div class="field-row">
+            <label><span class="label">Full name</span><input required name="name" autocomplete="name" /></label>
+            <label><span class="label">Email</span><input required type="email" name="email" autocomplete="email" /></label>
+          </div>
+
+          <h2 class="section-title">Shipping address</h2>
+          <label><span class="label">Address</span><input required name="address" autocomplete="address-line1" /></label>
+          <div class="field-row">
+            <label><span class="label">City</span><input required name="city" autocomplete="address-level2" /></label>
+            <label><span class="label">ZIP / Postal code</span><input required name="zip" autocomplete="postal-code" /></label>
+          </div>
+          <div class="field-row">
+            <label><span class="label">Country</span><input required name="country" autocomplete="country-name" /></label>
+            <label><span class="label">Phone (optional)</span><input name="phone" autocomplete="tel" /></label>
+          </div>
+
+          <label><span class="label">Order notes (optional)</span>
+            <textarea name="notes" rows="3" placeholder="Gift message, delivery instructions…"></textarea>
+          </label>
+          <label class="agree"><input type="checkbox" required /> I agree to the <a href="privacy.html">Privacy</a> and <a href="terms.html">Terms</a>.</label>
+
+          <button class="btn primary place-btn" id="payBtn" type="button">Pay securely</button>
+          <div class="muted tiny">You’ll be redirected to our secure payment page.</div>
+        </form>
+      </section>
+
+      <aside class="panel summary-card">
+        <h2 class="section-title">Order summary</h2>
+
+        <div class="promo">
+          <input id="promoCode" placeholder="Gift card / discount code" />
+          <button class="btn" id="applyPromo" type="button">Apply</button>
+        </div>
+
+        <div id="summaryItems" class="summary-items"></div>
+
+        <div class="divide"></div>
+        <div class="row"><span>Subtotal</span><strong id="summarySubtotal">€0.00</strong></div>
+        <div class="row"><span>Shipping</span><strong id="summaryShipping">Calculated</strong></div>
+        <div class="row"><span>Discount</span><strong id="summaryDiscount">—</strong></div>
+        <div class="divide"></div>
+        <div class="row total"><span>Total</span><strong id="summaryTotal">€0.00</strong></div>
+
+        <ul class="paylist mono" aria-label="Payment methods">
+          <li>VISA</li><li>MC</li><li>AMEX</li><li>PayPal</li><li>Apple Pay</li>
+        </ul>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <div>© <span id="year"></span> Shop Name</div>
+    </div>
+  </footer>
+
+  <script src="../app.js"></script>
+  <script>
+  (()=>{
+    const $ = (s,el=document)=>el.querySelector(s);
+    const cart = JSON.parse(localStorage.getItem('cart')||'{}');
+    if(!Object.keys(cart).length){ location.href='../index.html#products'; return; }
+
+    // Currency helper fallback (uses app.js money() if exists)
+    const CUR = { EUR:{rate:1, code:'EUR', loc:'en-US'}, USD:{rate:1.08, code:'USD', loc:'en-US'}, GBP:{rate:0.85, code:'GBP', loc:'en-GB'} };
+    const code = localStorage.getItem('currency') || 'EUR';
+    const cfg = CUR[code] || CUR.EUR;
+    const moneySafe = (n)=> (typeof window.money==='function')
+      ? window.money(n)
+      : new Intl.NumberFormat(cfg.loc,{style:'currency',currency:cfg.code}).format((Number(n)||0)*(cfg.rate||1));
+
+    let subtotal=0, discount=0, shipping=0;
+    const FREE_SHIP_EUR = 65, EXPRESS_EUR = 9.9;
+
+    fetch('../products.json',{cache:'no-cache'}).then(r=>r.json()).then(PRODUCTS=>{
+      const box = $('#summaryItems'); box.innerHTML='';
+      subtotal=0;
+      for(const id in cart){
+        const p = PRODUCTS.find(x=>x.id===id); if(!p) continue;
+        const qty = Number(cart[id]||0);
+        const line = p.price*qty; subtotal+=line;
+        const row = document.createElement('div');
+        row.className='sum-item';
+        row.innerHTML = `
+          <div class="si-left">
+            <div class="si-thumb" style="background-image:${p.image?`url(${p.image})`:'none'}"></div>
+            <div class="si-meta">
+              <div class="si-title">${p.title}</div>
+              <div class="muted tiny">${qty} × ${moneySafe(p.price)}</div>
+            </div>
+          </div>
+          <div class="si-right">${moneySafe(line)}</div>`;
+        box.appendChild(row);
+      }
+      shipping = subtotal>=FREE_SHIP_EUR ? 0 : 5.0;
+      syncTotals();
+    });
+
+    $('#applyPromo')?.addEventListener('click', ()=>{
+      const code = ($('#promoCode')?.value||'').trim().toUpperCase();
+      discount = (code==='TAKE10') ? subtotal*0.10 : 0;
+      syncTotals();
+    });
+
+    function syncTotals(){
+      const total = Math.max(0, subtotal-discount) + shipping;
+      $('#summarySubtotal').textContent = moneySafe(subtotal);
+      $('#summaryDiscount').textContent = discount ? ('− '+moneySafe(discount)) : '—';
+      $('#summaryShipping').textContent = shipping ? moneySafe(shipping) : 'Free';
+      $('#summaryTotal').textContent = moneySafe(total);
+    }
+
+    // Stripe (TEST publishable key)
+    const stripe = Stripe('pk_test_51SAvEzA1SwQpS6KlhBYYsQ6zgmuVGBuRg0m4VdNEmO1mPODZexhNxAex36oLTePHDI3CrsCfkmqVlkgHAJ34EdS900JGNgU3Sr');
+
+    $('#payBtn')?.addEventListener('click', async ()=>{
+      const form = $('#checkoutForm');
+      if(!form.reportValidity()) return;
+
+      const customer = Object.fromEntries(new FormData(form).entries());
+      localStorage.setItem('pendingCustomer', JSON.stringify(customer));
+
+      const PRODUCTS = await fetch('../products.json',{cache:'no-cache'}).then(r=>r.json());
+      const items = Object.entries(cart).map(([id,qty])=>{
+        const p = PRODUCTS.find(x=>x.id===id);
+        return {
+          quantity: Number(qty),
+          price_data:{
+            currency: (localStorage.getItem('currency')||'EUR').toLowerCase(),
+            product_data:{ name: p?.title || 'Item', images: p?.image ? [new URL(p.image, location.href).href] : [] },
+            unit_amount: Math.round((p?.price||0) * 100)
+          }
+        };
+      });
+
+      const res = await fetch('/api/create-checkout-session', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          line_items: items,
+          allow_promotion_codes: true,
+          shipping_options: [
+            { type:'fixed_amount', amount:0,     label:'Free shipping',   min_subtotal: FREE_SHIP_EUR*100 },
+            { type:'fixed_amount', amount:500,   label:'Standard (3–5d)' },
+            { type:'fixed_amount', amount: Math.round(EXPRESS_EUR*100), label:'Express (1–2d)' }
+          ],
+          customer_email: customer.email || '',
+          metadata: {
+            name: customer.name || '',
+            phone: customer.phone || '',
+            address: `${customer.address || ''}, ${customer.city || ''}, ${customer.zip || ''}, ${customer.country || ''}`,
+            notes: customer.notes || ''
+          }
+        })
+      });
+
+      if(!res.ok){ alert('Could not start checkout.'); return; }
+      const { id: sessionId, error } = await res.json();
+      if(error){ alert(error.message || 'Error'); return; }
+      const { error: redirectErr } = await stripe.redirectToCheckout({ sessionId });
+      if (redirectErr) alert(redirectErr.message);
+    });
+
+    const y = document.getElementById('year'); if(y) y.textContent = new Date().getFullYear();
+  })();
+  </script>
+</body>
+</html>

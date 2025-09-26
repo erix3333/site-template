@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Product — Shop Name</title>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body>
+  <header class="site-header" aria-label="Header">
+    <div class="wrap header-inner">
+      <a class="brand" href="../index.html" aria-label="Go to home">
+        <img id="brandLogo" src="../images/logo.png" alt="Store logo" />
+        <span id="brandName">Shop Name</span>
+      </a>
+      <div class="toolbar">
+        <a class="btn" href="../index.html#products">Back to shop</a>
+        <button class="btn primary" id="openCart">Cart (<span id="cartCount">0</span>)</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap pdp" id="main" style="padding:26px 0">
+    <!-- Breadcrumbs -->
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="../index.html">Home</a>
+      <span aria-hidden="true">›</span>
+      <a href="../index.html#products">Shop</a>
+      <span aria-hidden="true">›</span>
+      <span id="crumbTitle" aria-current="page">Product</span>
+    </nav>
+
+    <section class="pdp-grid">
+      <!-- Gallery -->
+      <div class="pdp-gallery panel">
+        <div id="pgMain" class="pg-main" role="img" aria-label="Product image"></div>
+        <div id="pgThumbs" class="pg-thumbs" role="list"></div>
+      </div>
+
+      <!-- Info -->
+      <article class="pdp-info panel">
+        <h1 id="pTitle" class="pdp-title">Product title</h1>
+        <div id="pCategory" class="muted" style="margin-top:-6px">Category</div>
+
+        <!-- Rating summary -->
+        <div class="rating-summary">
+          <span id="pStars" class="stars" aria-label="Rating">★★★★★</span>
+          <span id="pAvg" class="rating-num">0.0</span>
+          <a href="#reviews" class="muted" id="pCount">(0 reviews)</a>
+        </div>
+
+        <div class="pdp-price" id="pPrice">€0.00</div>
+        <div id="pStock" class="stock-badge">In stock</div>
+
+        <!-- Variants (optional, graceful if none) -->
+        <div id="pVariants" class="pdp-variants" hidden>
+          <div class="label">Options</div>
+          <div id="variantPills" class="pills"></div>
+        </div>
+
+        <p id="pDesc" class="muted" style="margin:10px 0 14px">Description…</p>
+
+        <div class="pdp-cta">
+          <label class="qty-wrap">Qty
+            <input id="pQty" type="number" min="1" value="1" class="qty-input" />
+          </label>
+          <button class="btn primary" id="pAdd">Add to cart</button>
+        </div>
+
+        <!-- Trust + details -->
+        <ul class="pdp-badges">
+          <li>Free returns 30 days</li>
+          <li>Secure checkout</li>
+          <li>Made with care</li>
+        </ul>
+
+        <details class="pdp-acc">
+          <summary>Materials & care</summary>
+          <div class="muted tiny">100% cotton. Machine wash cold. Do not bleach.</div>
+        </details>
+        <details class="pdp-acc">
+          <summary>Shipping & returns</summary>
+          <div class="muted tiny">Ships in 1–2 business days. Free EU returns within 30 days.</div>
+        </details>
+        <details class="pdp-acc">
+          <summary>Guarantee</summary>
+          <div class="muted tiny">If you're not happy, we’ll make it right—refund or replace.</div>
+        </details>
+      </article>
+    </section>
+
+    <!-- Reviews -->
+    <section id="reviews" class="panel" style="margin-top:20px">
+      <h2 class="section-title">Reviews</h2>
+
+      <div id="reviewList" class="review-list"></div>
+
+      <form id="reviewForm" class="review-form" novalidate>
+        <div class="row" style="gap:10px; flex-wrap:wrap">
+          <label class="stack" style="min-width:200px">
+            <span class="label">Name</span>
+            <input type="text" id="rvName" required placeholder="Your name">
+          </label>
+          <label class="stack">
+            <span class="label">Rating</span>
+            <div class="star-input" id="rvStars" aria-label="Select rating" role="radiogroup"></div>
+          </label>
+        </div>
+        <label class="stack" style="margin-top:10px">
+          <span class="label">Your review</span>
+          <textarea id="rvText" required rows="4" placeholder="What did you think?"></textarea>
+        </label>
+        <div class="row" style="margin-top:10px; justify-content:space-between">
+          <small class="muted">Be constructive and keep it civil.</small>
+          <button class="btn primary" type="submit">Submit review</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Related -->
+    <section class="panel" style="margin-top:20px">
+      <h2 class="section-title">You may also like</h2>
+      <div id="related" class="grid"></div>
+    </section>
+  </main>
+
+  <!-- Cart drawer on PDP -->
+  <div class="overlay" id="overlay" aria-hidden="true"></div>
+  <aside class="drawer right" id="cartDrawer" aria-label="Shopping cart" aria-hidden="true">
+    <header>
+      <strong>Cart</strong>
+      <button class="btn" id="closeCart" aria-label="Close cart">Close</button>
+    </header>
+    <div class="body" id="cartItems"></div>
+    <footer>
+      <div class="row"><span>Total</span><strong id="cartTotal">€0.00</strong></div>
+      <div id="checkoutArea"></div>
+      <small class="muted">Checkout — can be replaced with Stripe/PayPal later</small>
+    </footer>
+  </aside>
+
+  <!-- Core behaviors shared with index -->
+  <script src="../app.js"></script>
+
+  <!-- PDP logic (self-contained; reviews included) -->
+  <script>
+  (function(){
+    // ---------- Safe helpers (no dependency on app.js timing) ----------
+    const qs  = (s, el=document)=> el.querySelector(s);
+    const qsa = (s, el=document)=> Array.from(el.querySelectorAll(s));
+    const esc = (s)=> String(s).replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+
+    // Currency (reads user's selection from localStorage, falls back to EUR)
+    const CURRENCIES = {
+      EUR: { rate: 1,    locale: 'en-US', code:'EUR' },
+      USD: { rate: 1.08, locale: 'en-US', code:'USD' },
+      GBP: { rate: 0.85, locale: 'en-GB', code:'GBP' },
+    };
+    function moneyEURtoSelected(eurAmount){
+      const code = localStorage.getItem('currency') || 'EUR';
+      const cfg = CURRENCIES[code] || CURRENCIES.EUR;
+      return new Intl.NumberFormat(cfg.locale, { style:'currency', currency: cfg.code })
+              .format((Number(eurAmount)||0) * cfg.rate);
+    }
+
+    function getCart(){ try{ return JSON.parse(localStorage.getItem('cart')||'{}'); }catch{ return {}; } }
+    function setCart(c){ localStorage.setItem('cart', JSON.stringify(c)); updateHeaderCount(); }
+    function updateHeaderCount(){
+      const c = Object.values(getCart()).reduce((s,n)=>s+Number(n||0),0);
+      const el = qs('#cartCount'); if (el) el.textContent = c;
+    }
+    function getStock(p){
+      const n = Number(p?.stock);
+      return Number.isFinite(n) ? n : Infinity;
+    }
+    // Add to cart compatible with app.js; if app.js provides addToCart/openCart we delegate
+    function addToCartCompat(product, qty){
+      if (typeof window.addToCart === 'function') {
+        window.addToCart(product.id, qty);
+        if (typeof window.openCart === 'function') window.openCart();
+        return;
+      }
+      const cart = getCart();
+      const max = getStock(product);
+      const current = Number(cart[product.id]||0);
+      const next = Math.min(current + Math.max(1, Number(qty)||1), max);
+      cart[product.id] = next;
+      setCart(cart);
+      if (next === current && max !== Infinity) alert('Sorry, no more stock for this item.');
+      alert('Added to cart.');
+    }
+
+    // ---------- Page boot ----------
+    const params = new URLSearchParams(location.search);
+    const pid = params.get('id');
+    if (!pid) { location.href = '../index.html#products'; return; }
+
+    const PRODUCTS_URL = '../products.json';
+    let PRODUCT = null;
+    let MAIN_IMG = null;
+
+    fetch(PRODUCTS_URL, {cache:'no-cache'})
+      .then(r=>r.json())
+      .then(PRODUCTS=>{
+        PRODUCT = PRODUCTS.find(x=>x.id===pid);
+        if (!PRODUCT) { location.href = '../index.html#products'; return; }
+
+        // Title / crumbs / meta
+        document.title = PRODUCT.title + ' — Shop Name';
+        const tEl = qs('#pTitle');      if (tEl) tEl.textContent = PRODUCT.title;
+        const bc  = qs('#crumbTitle');  if (bc)  bc.textContent  = PRODUCT.title;
+        const cat = qs('#pCategory');   if (cat) cat.textContent = PRODUCT.category || '';
+        const pr  = qs('#pPrice');      if (pr)  pr.textContent  = moneyEURtoSelected(PRODUCT.price);
+        const desc= qs('#pDesc');       if (desc)desc.textContent= PRODUCT.description || PRODUCT.excerpt || '';
+
+        // Stock badge + disable add
+        const stock = getStock(PRODUCT);
+        const stockEl = qs('#pStock');
+        const addBtn  = qs('#pAdd');
+        const qtyEl   = qs('#pQty');
+
+        if (stockEl){
+          if (stock === Infinity) { stockEl.textContent='In stock'; stockEl.className='stock-badge in'; }
+          else if (stock <= 0)    { stockEl.textContent='Out of stock'; stockEl.className='stock-badge out'; }
+          else if (stock <= 3)    { stockEl.textContent=`Only ${stock} left`; stockEl.className='stock-badge low'; }
+          else                    { stockEl.textContent='In stock'; stockEl.className='stock-badge in'; }
+        }
+        if (qtyEl && stock !== Infinity) qtyEl.setAttribute('max', String(Math.max(0, stock)));
+        if (addBtn && stock <= 0){ addBtn.disabled = true; addBtn.classList.add('disabled'); }
+
+        // Gallery + zoom
+        const imgs = Array.isArray(PRODUCT.images) && PRODUCT.images.length ? PRODUCT.images
+                   : (PRODUCT.image ? [PRODUCT.image] : []);
+        const pgMain = qs('#pgMain');
+        const pgThumbs = qs('#pgThumbs');
+
+        function setMain(src){
+          MAIN_IMG = src || null;
+          if (pgMain){
+            pgMain.style.backgroundImage = src ? `url(${src})` : '';
+            if (!src) pgMain.style.background = '#f6f6f6';
+            pgMain.style.backgroundPosition = 'center';
+            pgMain.classList.remove('zoom');
+          }
+        }
+        if (imgs.length){
+          setMain(imgs[0]);
+          imgs.forEach(src=>{
+            const b = document.createElement('button');
+            b.type='button'; b.className='pg-thumb'; b.setAttribute('role','listitem');
+            b.style.backgroundImage = `url(${src})`;
+            b.addEventListener('click', ()=> setMain(src));
+            if (pgThumbs) pgThumbs.appendChild(b);
+          });
+        }else if (pgMain){
+          pgMain.style.background = '#f6f6f6';
+          pgMain.style.backgroundImage = '';
+        }
+
+        if (pgMain){
+          pgMain.addEventListener('mouseenter', ()=>{ if (MAIN_IMG) pgMain.classList.add('zoom'); });
+          pgMain.addEventListener('mousemove', (e)=>{
+            if (!MAIN_IMG) return;
+            const r = pgMain.getBoundingClientRect();
+            const x = ((e.clientX - r.left)/r.width)*100;
+            const y = ((e.clientY - r.top)/r.height)*100;
+            pgMain.style.backgroundPosition = `${x}% ${y}%`;
+          });
+          pgMain.addEventListener('mouseleave', ()=>{
+            pgMain.classList.remove('zoom');
+            pgMain.style.backgroundPosition = 'center';
+          });
+        }
+
+        // Variants
+        if (PRODUCT.options && PRODUCT.options.length){
+          const wrap = qs('#pVariants');
+          const pills= qs('#variantPills');
+          if (wrap && pills){
+            wrap.hidden = false;
+            PRODUCT.options.forEach(opt=>{
+              const pill = document.createElement('button');
+              pill.type='button'; pill.className='pill'; pill.textContent=opt;
+              pill.addEventListener('click', ()=>{
+                qsa('.pill', pills).forEach(x=>x.classList.remove('active'));
+                pill.classList.add('active');
+              });
+              pills.appendChild(pill);
+            });
+            const first = pills.querySelector('.pill'); if (first) first.classList.add('active');
+          }
+        }
+
+        // Add to cart
+        if (addBtn){
+          addBtn.addEventListener('click', ()=>{
+            if (stock <= 0) return;
+            const qty = Math.max(1, parseInt(qs('#pQty')?.value || '1', 10));
+            const capped = (stock === Infinity) ? qty : Math.min(qty, stock);
+            addToCartCompat(PRODUCT, capped);
+          });
+        }
+
+        // Related (local renderer)
+        const related = PRODUCTS.filter(p => p.category && PRODUCT.category && p.category===PRODUCT.category && p.id!==PRODUCT.id).slice(0,4);
+        renderRelated(related);
+
+        // Reviews attach (now that PRODUCT & pid exist)
+        attachReviews(pid, PRODUCT);
+
+        // Sync header cart count on load
+        updateHeaderCount();
+
+        // JSON-LD (Product + offers; AggregateRating added by reviews renderer)
+        try{
+          const code = localStorage.getItem('currency') || 'EUR';
+          const availability =
+            stock === Infinity ? "https://schema.org/InStock" :
+            stock > 0         ? "https://schema.org/InStock" :
+                                "https://schema.org/OutOfStock";
+          const base = {
+            "@context": "https://schema.org/",
+            "@type": "Product",
+            "name": PRODUCT.title,
+            "category": PRODUCT.category || "",
+            "description": PRODUCT.description || PRODUCT.excerpt || "",
+            "offers": {
+              "@type": "Offer",
+              "priceCurrency": code,
+              "price": (PRODUCT.price*(CURRENCIES[code]?.rate||1)).toFixed(2),
+              "availability": availability
+            }
+          };
+          const old = document.getElementById('ld-product-base'); if (old) old.remove();
+          const s = document.createElement('script'); s.type='application/ld+json'; s.id='ld-product-base';
+          s.textContent = JSON.stringify(base);
+          document.head.appendChild(s);
+        }catch{}
+      })
+      .catch(()=> location.href = '../index.html#products');
+
+    function renderRelated(list){
+      const mount = qs('#related'); if (!mount) return;
+      mount.innerHTML = '';
+      list.forEach(p=>{
+        const card = document.createElement('article');
+        card.className = 'card';
+        const media = document.createElement('div');
+        media.className = 'card-media';
+        media.style.background = '#f6f6f6';
+        media.style.backgroundImage = p.image ? `url(${p.image})` : 'none';
+        media.style.backgroundSize = 'cover';
+        media.style.backgroundPosition = 'center';
+
+        const body = document.createElement('div');
+        body.className = 'card-body';
+        const price = moneyEURtoSelected(p.price);
+        const stock = getStock(p);
+        const out = stock <= 0;
+
+        body.innerHTML = `
+          <h3 class="card-title">${esc(p.title)}</h3>
+          <p class="muted" style="min-height:2.2em">${esc(p.excerpt || '')}</p>
+          <div class="row">
+            <span class="price">${price}</span>
+            <div class="row" style="gap:8px">
+              <a class="btn" href="../pages/product.html?id=${encodeURIComponent(p.id)}">Details</a>
+              <button class="btn rel-add" data-id="${esc(p.id)}" ${out?'disabled':''}>Add</button>
+            </div>
+          </div>`;
+        card.appendChild(media); card.appendChild(body);
+        mount.appendChild(card);
+
+        // attach add
+        body.querySelector('.rel-add')?.addEventListener('click', (e)=>{
+          e.preventDefault(); e.stopPropagation();
+          addToCartCompat(p, 1);
+        });
+      });
+    }
+
+    // ---------- Reviews (localStorage) ----------
+    function attachReviews(pid, PRODUCT){
+      const KEY = 'reviews:v1';
+      const getAll = ()=> { try{ return JSON.parse(localStorage.getItem(KEY)||'{}'); } catch { return {}; } };
+      const setAll = (obj)=> localStorage.setItem(KEY, JSON.stringify(obj));
+      const getFor = (id)=> getAll()[id] || [];
+      const setFor = (id, list)=> { const all = getAll(); all[id]=list; setAll(all); };
+
+      const listEl  = document.getElementById('reviewList');
+      const form    = document.getElementById('reviewForm');
+      const nameEl  = document.getElementById('rvName');
+      const textEl  = document.getElementById('rvText');
+      const starWrap= document.getElementById('rvStars');
+      const sumStars= document.getElementById('pStars');
+      const sumAvg  = document.getElementById('pAvg');
+      const sumCnt  = document.getElementById('pCount');
+
+      // 5-star input
+      let selected = 5;
+      if (starWrap){
+        starWrap.innerHTML = '';
+        for (let i=1;i<=5;i++){
+          const b = document.createElement('button');
+          b.type='button'; b.textContent='★';
+          b.setAttribute('role','radio'); b.setAttribute('aria-checked', i===selected?'true':'false');
+          b.className = i===selected ? 'active' : '';
+          b.addEventListener('click', ()=>{
+            selected = i;
+            [...starWrap.children].forEach((c,idx)=>{
+              c.classList.toggle('active', idx < selected);
+              c.setAttribute('aria-checked', idx < selected ? 'true':'false');
+            });
+          });
+          starWrap.appendChild(b);
+        }
+      }
+
+      function render(){
+        const data = getFor(pid).sort((a,b)=> b.ts - a.ts);
+
+        // Summary
+        const avg = data.length ? (data.reduce((s,r)=>s+r.rating,0)/data.length) : 0;
+        if (sumAvg) sumAvg.textContent = avg.toFixed(1);
+        if (sumCnt) sumCnt.textContent = `(${data.length} review${data.length!==1?'s':''})`;
+        if (sumStars) sumStars.textContent = '★★★★★'.slice(0, Math.round(avg)).padEnd(5, '☆');
+
+        if (!listEl) return;
+        listEl.innerHTML = '';
+        if (!data.length){
+          const empty = document.createElement('div');
+          empty.className='muted';
+          empty.textContent='No reviews yet. Be the first to review this product.';
+          listEl.appendChild(empty);
+        } else {
+          data.forEach((r,idx)=>{
+            const card = document.createElement('div');
+            card.className = 'review';
+            card.innerHTML = `
+              <div class="meta">
+                <span class="stars" aria-label="${r.rating} out of 5">${'★★★★★'.slice(0,r.rating).padEnd(5,'☆')}</span>
+                <span class="author">${esc(r.author||'Anonymous')}</span>
+                <span class="date">${new Date(r.ts).toLocaleDateString()}</span>
+              </div>
+              <div class="body">${esc(r.text||'')}</div>
+              <div class="helpful">
+                <button class="btn" data-act="up" data-idx="${idx}">Helpful (${r.up||0})</button>
+                <button class="btn" data-act="down" data-idx="${idx}">Not helpful (${r.down||0})</button>
+              </div>
+            `;
+            listEl.appendChild(card);
+          });
+
+          listEl.querySelectorAll('.helpful button').forEach(btn=>{
+            btn.addEventListener('click', ()=>{
+              const act = btn.dataset.act;
+              const i = Number(btn.dataset.idx);
+              const all = getFor(pid);
+              if (!all[i]) return;
+              if (act==='up')   all[i].up   = (all[i].up||0)+1;
+              if (act==='down') all[i].down = (all[i].down||0)+1;
+              setFor(pid, all);
+              render();
+            });
+          });
+        }
+
+        // JSON-LD AggregateRating
+        try {
+          const ld = document.getElementById('ld-product-rating');
+          if (ld) ld.remove();
+          if (PRODUCT && data.length){
+            const schema = {
+              "@context": "https://schema.org/",
+              "@type": "Product",
+              "name": PRODUCT.title,
+              "category": PRODUCT.category || "",
+              "aggregateRating": {
+                "@type": "AggregateRating",
+                "ratingValue": avg.toFixed(1),
+                "reviewCount": data.length
+              }
+            };
+            const s = document.createElement('script');
+            s.type='application/ld+json'; s.id='ld-product-rating';
+            s.textContent = JSON.stringify(schema);
+            document.head.appendChild(s);
+          }
+        } catch {}
+      }
+
+      if (form){
+        form.addEventListener('submit', (e)=>{
+          e.preventDefault();
+          const author = (nameEl?.value || '').trim() || 'Anonymous';
+          const text   = (textEl?.value || '').trim();
+          if (!text) { alert('Please write a short review.'); return; }
+          const rating = Math.max(1, Math.min(5, selected|0));
+
+          const all = getFor(pid);
+          all.push({ author, text, rating, ts: Date.now(), up:0, down:0 });
+          setFor(pid, all);
+
+          if (textEl) textEl.value = '';
+          render();
+          document.getElementById('reviews')?.scrollIntoView({behavior:'smooth', block:'start'});
+        });
+      }
+
+      render();
+    }
+  })();
+  </script>
+</body>
+</html>
