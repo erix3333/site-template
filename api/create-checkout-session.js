@@ -1,94 +1,95 @@
 // /api/create-checkout-session.js
-const fs = require('fs');
-const path = require('path');
-const Stripe = require('stripe');
+import Stripe from 'stripe';
+import fs from 'fs';
+import path from 'path';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: '2024-06-20',
+});
 
-// Load products.json once (bundled with the function)
-const PRODUCTS_PATH = path.join(process.cwd(), 'products.json');
-let PRODUCTS = [];
-try {
-  const raw = fs.readFileSync(PRODUCTS_PATH, 'utf8');
-  PRODUCTS = JSON.parse(raw);
-} catch (e) {
-  console.error('Failed to load products.json', e);
-}
-
-function findProduct(id) {
-  return PRODUCTS.find(p => p.id === id);
-}
-
-module.exports = async (req, res) => {
-  // Allow same-origin POST only (Vercel serves both frontend & API)
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { items, contact } = req.body || {};
-    // items is expected like: { "prod_1": 2, "prod_7": 1 }
-    if (!items || typeof items !== 'object')
-      return res.status(400).json({ error: 'Missing items' });
+    // items: [{ id, qty }]
+    const { items, meta } = req.body || {};
+    if (!Array.isArray(items) || !items.length) {
+      return res.status(400).json({ error: 'No items in request.' });
+    }
 
-    // Build Stripe line_items from our trusted products.json (server-side pricing)
-    const line_items = [];
-    for (const id of Object.keys(items)) {
-      const qty = Math.max(1, parseInt(items[id] || '1', 10));
-      const p = findProduct(id);
-      if (!p) continue;
+    // Load products.json (relative to project root)
+    const productsPath = path.join(process.cwd(), 'products.json');
+    const products = JSON.parse(fs.readFileSync(productsPath, 'utf8'));
 
-      line_items.push({
-        quantity: qty,
+    // Build line items from ids
+    let subtotalEUR = 0;
+    const line_items = items.map(({ id, qty }) => {
+      const p = products.find(x => String(x.id) === String(id));
+      if (!p) throw new Error(`Product not found: ${id}`);
+      const quantity = Math.max(1, Number(qty) || 1);
+      subtotalEUR += p.price * quantity;
+      return {
+        quantity,
         price_data: {
-          currency: 'eur',                 // keep EUR first; you can extend later
+          currency: 'eur',
           product_data: {
             name: p.title,
-            description: p.excerpt || '',
-            images: p.image ? [p.image] : []
+            images: p.image ? [p.image] : [],
           },
-          unit_amount: Math.round((p.price || 0) * 100) // cents
-        }
-      });
-    }
+          unit_amount: Math.round(p.price * 100), // cents
+        },
+      };
+    });
 
-    if (!line_items.length) {
-      return res.status(400).json({ error: 'No valid items' });
-    }
+    // Shipping options (compute standard by threshold)
+    const FREE_SHIP_THRESHOLD_EUR = 65;
+    const STANDARD_EUR = subtotalEUR >= FREE_SHIP_THRESHOLD_EUR ? 0 : 5.0;
+    const EXPRESS_EUR = 9.90;
 
-    // Shipping options (simple)
+    // We’ll present Standard + Express to the buyer
     const shipping_options = [
       { shipping_rate_data: {
-          display_name: 'Standard',
           type: 'fixed_amount',
-          fixed_amount: { amount: 500, currency: 'eur' }, // €5 unless €0 logic moved here
-          delivery_estimate: { minimum: { unit: 'business_day', value: 3 }, maximum: { unit: 'business_day', value: 5 } }
-      }},
+          fixed_amount: { amount: Math.round(STANDARD_EUR * 100), currency: 'eur' },
+          display_name: 'Standard (3–5 days)',
+        }
+      },
       { shipping_rate_data: {
-          display_name: 'Express',
           type: 'fixed_amount',
-          fixed_amount: { amount: 990, currency: 'eur' }, // €9.90
-          delivery_estimate: { minimum: { unit: 'business_day', value: 1 }, maximum: { unit: 'business_day', value: 2 } }
-      }}
+          fixed_amount: { amount: Math.round(EXPRESS_EUR * 100), currency: 'eur' },
+          display_name: 'Express (1–2 days)',
+        }
+      },
     ];
 
-    const origin = req.headers.origin || 'http://localhost:3000';
+    // Determine host for success/cancel
+    const origin =
+      (req.headers['x-forwarded-proto'] && req.headers['x-forwarded-host'])
+        ? `${req.headers['x-forwarded-proto']}://${req.headers['x-forwarded-host']}`
+        : (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+
+    // Create session
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
+      payment_method_types: ['card', 'link'],
       line_items,
-      allow_promotion_codes: true,
-      shipping_address_collection: { allowed_countries: ['US', 'GB', 'IE', 'FR', 'DE', 'ES', 'IT', 'NL', 'PL', 'BE', 'PT', 'SE', 'DK', 'AT', 'FI', 'GR', 'RO', 'HU', 'CZ', 'SK', 'BG', 'HR', 'SI', 'EE', 'LV', 'LT'] },
+      shipping_address_collection: { allowed_countries: ['US', 'CA', 'GB', 'IE', 'DE', 'FR', 'ES', 'IT', 'NL', 'BE', 'PT', 'SE', 'DK', 'FI', 'NO', 'PL', 'CZ', 'AT', 'CH', 'LU', 'GR', 'RO', 'BG', 'HU', 'HR', 'SI', 'SK', 'EE', 'LV', 'LT', 'MT', 'CY', 'PT'] },
       shipping_options,
-      // optional: prefill email if provided
-      customer_email: contact?.email ? String(contact.email) : undefined,
       success_url: `${origin}/pages/thank-you.html?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/pages/checkout.html`
+      cancel_url: `${origin}/pages/cancel.html`,
+      metadata: {
+        // optional: pass along minimal contact info summary for the dashboard
+        name: meta?.name || '',
+        email: meta?.email || '',
+      },
     });
 
     return res.status(200).json({ url: session.url });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: 'Server error' });
+    return res.status(500).json({ error: err.message || 'Internal error' });
   }
-};
+}

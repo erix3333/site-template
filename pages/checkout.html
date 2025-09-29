@@ -1,38 +1,378 @@
-<script src="../app.js"></script>
-<script>
-  // --- Replace previous submit logic with a real Stripe Checkout redirect ---
-  const cart = JSON.parse(localStorage.getItem('cart')||'{}');
-  if (!Object.keys(cart).length) {
-    location.href = '../index.html#products';
-  }
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Checkout — Shop Name</title>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body>
+  <header class="site-header" aria-label="Header">
+    <div class="wrap header-inner">
+      <a class="brand" href="../index.html">
+        <img id="brandLogo" src="../images/logo.png" alt="Store logo" />
+        <span id="brandName">Shop Name</span>
+      </a>
+      <div class="toolbar">
+        <a class="btn" href="../index.html#products">Continue shopping</a>
+      </div>
+    </div>
+  </header>
 
-  // keep your existing summary render if you like – not required for redirect
-  document.getElementById('checkoutForm').addEventListener('submit', async (e)=>{
+  <main class="wrap checkout" id="main">
+    <!-- Stepper -->
+    <nav class="stepper" aria-label="Checkout progress">
+      <div class="step current" data-step="0"><span>1</span><b>Information</b></div>
+      <div class="step" data-step="1"><span>2</span><b>Shipping</b></div>
+      <div class="step" data-step="2"><span>3</span><b>Payment</b></div>
+      <div class="step" data-step="3"><span>4</span><b>Review</b></div>
+    </nav>
+
+    <div class="checkout-grid">
+      <!-- LEFT: multi-step forms -->
+      <section class="panel luxe-card">
+        <form id="checkoutForm" class="stack" novalidate>
+          <!-- STEP 1: Contact + Address -->
+          <section class="ck-step" data-step="0">
+            <h2 class="section-title">Contact</h2>
+            <div class="field-row">
+              <label><span class="label">Full name</span><input required name="name" autocomplete="name" /></label>
+              <label><span class="label">Email</span><input required type="email" name="email" autocomplete="email" /></label>
+            </div>
+
+            <h2 class="section-title">Shipping address</h2>
+            <label><span class="label">Address</span><input required name="address" autocomplete="address-line1" /></label>
+            <div class="field-row">
+              <label><span class="label">City</span><input required name="city" autocomplete="address-level2" /></label>
+              <label><span class="label">ZIP / Postal code</span><input required name="zip" autocomplete="postal-code" /></label>
+            </div>
+            <div class="field-row">
+              <label><span class="label">Country</span><input required name="country" autocomplete="country-name" /></label>
+              <label><span class="label">Phone (optional)</span><input name="phone" autocomplete="tel" /></label>
+            </div>
+
+            <div class="row" style="margin-top:10px; justify-content:space-between">
+              <span class="muted tiny">Step 1 of 4</span>
+              <button class="btn primary" data-next type="button">Continue to shipping</button>
+            </div>
+          </section>
+
+          <!-- STEP 2: Shipping -->
+          <section class="ck-step" data-step="1" hidden>
+            <h2 class="section-title">Shipping</h2>
+            <div class="radio-grid" role="radiogroup" aria-label="Shipping method">
+              <label class="radio-card">
+                <input type="radio" name="ship" value="standard" checked />
+                <div class="rc-body">
+                  <div class="rc-title">Standard</div>
+                  <div class="rc-sub muted">3–5 business days</div>
+                </div>
+                <div class="rc-price" id="shipStandard">€0.00</div>
+              </label>
+              <label class="radio-card">
+                <input type="radio" name="ship" value="express" />
+                <div class="rc-body">
+                  <div class="rc-title">Express</div>
+                  <div class="rc-sub muted">1–2 business days</div>
+                </div>
+                <div class="rc-price" id="shipExpress">€0.00</div>
+              </label>
+            </div>
+
+            <div class="row" style="margin-top:10px; justify-content:space-between">
+              <button class="btn" data-back type="button">Back</button>
+              <button class="btn primary" data-next type="button">Continue to payment</button>
+            </div>
+          </section>
+
+          <!-- STEP 3: Payment -->
+          <section class="ck-step" data-step="2" hidden>
+            <h2 class="section-title">Payment</h2>
+            <div class="radio-grid" role="radiogroup" aria-label="Payment method">
+              <label class="radio-card">
+                <input type="radio" name="pay" value="card" checked />
+                <div class="rc-body">
+                  <div class="rc-title">Card</div>
+                  <div class="rc-sub muted">Visa, MasterCard, AmEx</div>
+                </div>
+                <div class="rc-right muted">Secure</div>
+              </label>
+              <label class="radio-card">
+                <input type="radio" name="pay" value="paypal" />
+                <div class="rc-body">
+                  <div class="rc-title">PayPal</div>
+                  <div class="rc-sub muted">Login at next step</div>
+                </div>
+                <div class="rc-right muted">Secure</div>
+              </label>
+              <label class="radio-card">
+                <input type="radio" name="pay" value="cod" />
+                <div class="rc-body">
+                  <div class="rc-title">Cash on delivery</div>
+                  <div class="rc-sub muted">Pay to courier</div>
+                </div>
+                <div class="rc-right muted">+ handling</div>
+              </label>
+            </div>
+
+            <label class="stack" style="margin-top:10px">
+              <span class="label">Order notes (optional)</span>
+              <textarea name="notes" rows="3" placeholder="Gift message, delivery instructions…"></textarea>
+            </label>
+            <label class="agree"><input type="checkbox" required id="agree" /> I agree to the <a href="privacy.html">Privacy</a> and <a href="terms.html">Terms</a>.</label>
+
+            <div class="row" style="margin-top:10px; justify-content:space-between">
+              <button class="btn" data-back type="button">Back</button>
+              <button class="btn primary" data-next type="button">Review order</button>
+            </div>
+          </section>
+
+          <!-- STEP 4: Review + Place order -->
+          <section class="ck-step" data-step="3" hidden>
+            <h2 class="section-title">Review & place order</h2>
+            <div id="reviewBlock" class="muted tiny" style="margin-bottom:10px"></div>
+            <button class="btn primary place-btn" type="submit">Place order</button>
+            <div class="muted tiny">Your data is encrypted & never shared. We don’t store card details.</div>
+
+            <div class="row" style="margin-top:10px; justify-content:flex-start">
+              <button class="btn" data-back type="button">Back</button>
+            </div>
+          </section>
+        </form>
+      </section>
+
+      <!-- RIGHT: summary (sticky) -->
+      <aside class="panel summary-card">
+        <h2 class="section-title">Order summary</h2>
+
+        <!-- Promo -->
+        <div class="promo">
+          <input id="promoCode" placeholder="Gift card / discount code" />
+          <button class="btn" id="applyPromo" type="button">Apply</button>
+        </div>
+
+        <div id="summaryItems" class="summary-items"></div>
+
+        <div class="divide"></div>
+        <div class="row"><span>Subtotal</span><strong id="summarySubtotal">€0.00</strong></div>
+        <div class="row"><span>Shipping</span><strong id="summaryShipping">Calculated</strong></div>
+        <div class="row"><span>Discount</span><strong id="summaryDiscount">—</strong></div>
+        <div class="divide"></div>
+        <div class="row total"><span>Total</span><strong id="summaryTotal">€0.00</strong></div>
+
+        <!-- Trust strip -->
+        <ul class="paylist mono" aria-label="Payment methods">
+          <li>VISA</li><li>MC</li><li>AMEX</li><li>PayPal</li><li>Apple Pay</li>
+        </ul>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <div>© <span id="year"></span> Shop Name</div>
+    </div>
+  </footer>
+
+  <!-- shared helpers + money() -->
+  <script src="../app.js"></script>
+  <script>
+    // ===== CONFIG (base amounts in EUR) =====
+    const EXPRESS_FEE_EUR = 9.9;
+    const COD_FEE_EUR = 2.5;
+    const STANDARD_FEE_EUR = 5.0;
+    const FREE_SHIP_THRESHOLD_EUR = 65;
+
+    // ===== STATE =====
+    const cart = JSON.parse(localStorage.getItem('cart')||'{}');
+    if (!Object.keys(cart).length) location.href = '../index.html#products';
+
+    let subtotal = 0;
+    let discount = 0;
+    let shipping = 0;
+    let payMethod = 'card';
+    let shipMethod = 'standard';
+
+    const $ = (s, el=document)=> el.querySelector(s);
+    const $$ = (s, el=document)=> Array.from(el.querySelectorAll(s));
+
+    // ===== STEP WIZARD =====
+    let currentStep = 0;
+    const steps = $$('.ck-step');
+    const stepper = $$('.stepper .step');
+
+    function showStep(i){
+      currentStep = Math.max(0, Math.min(steps.length-1, i));
+      steps.forEach((sec,idx)=> sec.hidden = idx !== currentStep);
+      stepper.forEach((el,idx)=>{
+        el.classList.toggle('current', idx === currentStep);
+        el.classList.toggle('done', idx < currentStep);
+      });
+      // tiny UX: scroll to top of form on step change
+      $('#main')?.scrollIntoView({behavior:'smooth', block:'start'});
+      renderReview();
+    }
+
+    function validateStep(i){
+      // Minimal per-step validation
+      const sec = steps[i];
+      if (!sec) return true;
+
+      if (i === 0){ // contact + address
+        const required = $$('input[required]', sec);
+        for (const inp of required){
+          if (!inp.value.trim()) { inp.focus(); alert('Please complete your contact and address.'); return false; }
+        }
+      }
+      if (i === 2){ // payment requires agreement
+        if (!$('#agree')?.checked){
+          alert('Please agree to the Privacy and Terms.');
+          return false;
+        }
+      }
+      return true;
+    }
+
+    // next/back buttons
+    $$('[data-next]').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        if (!validateStep(currentStep)) return;
+        showStep(currentStep+1);
+      });
+    });
+    $$('[data-back]').forEach(b=>{
+      b.addEventListener('click', ()=> showStep(currentStep-1));
+    });
+
+    // ===== SUMMARY / PRICES =====
+    function syncPrices(){
+      const total = Math.max(0, subtotal - discount) + shipping;
+      $('#summarySubtotal').textContent = money(subtotal);
+      $('#summaryDiscount').textContent = discount ? ('− ' + money(discount)) : '—';
+      $('#summaryShipping').textContent = shipping ? money(shipping) : 'Free';
+      $('#summaryTotal').textContent = money(total);
+    }
+
+    function setShippingBySelections(){
+      // base ship from chosen method + free threshold
+      const base = (shipMethod === 'express')
+        ? EXPRESS_FEE_EUR
+        : (subtotal >= FREE_SHIP_THRESHOLD_EUR ? 0 : STANDARD_FEE_EUR);
+
+      const handling = (payMethod === 'cod') ? COD_FEE_EUR : 0;
+      shipping = base + handling;
+
+      // reflect label amounts
+      $('#shipStandard').textContent = (subtotal >= FREE_SHIP_THRESHOLD_EUR) ? money(0) : money(STANDARD_FEE_EUR);
+      $('#shipExpress').textContent = money(EXPRESS_FEE_EUR);
+
+      syncPrices();
+    }
+
+    // ===== LOAD CART INTO SUMMARY =====
+    fetch('../products.json', {cache:'no-cache'})
+      .then(r=>r.json())
+      .then(PRODUCTS=>{
+        const itemsWrap = $('#summaryItems');
+        itemsWrap.innerHTML = '';
+        subtotal = 0;
+
+        for(const id in cart){
+          const p = PRODUCTS.find(x=>x.id===id); if(!p) continue;
+          const qty = cart[id];
+          const sum = p.price * qty;
+          subtotal += sum;
+
+          const row = document.createElement('div');
+          row.className = 'sum-item';
+          row.innerHTML = `
+            <div class="si-left">
+              <div class="si-thumb" style="background-image:${p.image ? `url(${p.image})` : 'none'}"></div>
+              <div class="si-meta">
+                <div class="si-title">${p.title}</div>
+                <div class="muted tiny">${qty} × ${money(p.price)}</div>
+              </div>
+            </div>
+            <div class="si-right">${money(sum)}</div>`;
+          itemsWrap.appendChild(row);
+        }
+
+        setShippingBySelections();
+      });
+
+    // promo
+    $('#applyPromo').addEventListener('click', ()=>{
+      const code = ($('#promoCode').value||'').trim().toUpperCase();
+      discount = (code === 'TAKE10') ? (subtotal * 0.10) : 0;
+      syncPrices();
+    });
+
+    // shipping selection
+    $$('input[name="ship"]').forEach(r=>{
+      r.addEventListener('change', ()=>{
+        shipMethod = r.value;
+        setShippingBySelections();
+      });
+    });
+
+    // payment selection
+    $$('input[name="pay"]').forEach(r=>{
+      r.addEventListener('change', ()=>{
+        payMethod = r.value;
+        setShippingBySelections();
+      });
+    });
+
+    // review block content
+    function renderReview(){
+      if (currentStep !== 3) return;
+      const f = $('#checkoutForm');
+      const data = Object.fromEntries(new FormData(f));
+      const lines = [
+        `<b>Ship to:</b> ${[data.name, data.address, data.city, data.zip, data.country].filter(Boolean).join(', ')}`,
+        `<b>Email:</b> ${data.email || ''}`,
+        data.phone ? `<b>Phone:</b> ${data.phone}` : '',
+        `<b>Shipping:</b> ${shipMethod === 'express' ? 'Express' : 'Standard'}`,
+        `<b>Payment:</b> ${payMethod.toUpperCase()}`,
+        data.notes ? `<b>Notes:</b> ${data.notes}` : ''
+      ].filter(Boolean);
+      $('#reviewBlock').innerHTML = lines.map(x=>`<div>${x}</div>`).join('');
+    }
+
+    // submit = go to Stripe
+  $('#checkoutForm').addEventListener('submit', async (e)=>{
     e.preventDefault();
-    const form = e.target;
-    if (!form.checkValidity()) { alert('Please complete required fields.'); return; }
+    // final validation pass
+    for (let i=0;i<3;i++){ if (!validateStep(i)) { showStep(i); return; } }
 
-    // Pack minimal contact (optional)
-    const data = Object.fromEntries(new FormData(form));
-    const payload = { items: cart, contact: { email: data.email } };
+    // Minimal contact to pass as metadata
+    const data = Object.fromEntries(new FormData(e.target));
+
+    const cart = JSON.parse(localStorage.getItem('cart')||'{}');
+    const items = Object.keys(cart).map(id => ({ id, qty: cart[id] }));
 
     try {
-      const res = await fetch('/api/create-checkout-session', {
-        method:'POST',
+      const r = await fetch('/api/create-checkout-session', {
+        method: 'POST',
         headers: { 'Content-Type':'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          items,
+          meta: { name: data.name, email: data.email }
+        })
       });
-      const out = await res.json();
-      if (!res.ok) throw new Error(out.error || 'Failed to start checkout');
-
-      // Redirect to Stripe
-      window.location.href = out.url;
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || 'Failed to create session');
+      // off to Stripe
+      window.location.href = j.url;
     } catch (err) {
-      alert('Checkout failed: ' + err.message);
+      alert('Checkout error: ' + err.message);
       console.error(err);
     }
   });
 
-  // tiny: update year
-  document.getElementById('year').textContent = new Date().getFullYear();
-</script>
+  // year & start step
+  $('#year').textContent = new Date().getFullYear();
+  showStep(0);
+  </script>
+</body>
+</html>
