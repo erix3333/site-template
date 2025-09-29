@@ -1,7 +1,7 @@
 [
-    { "id": "p-001", "title": "Minimalist T-shirt", "price": 19.99, "currency": "EUR", "image": "", "category": "Clothing", "excerpt": "Regular fit, extra comfort.", "description": "100% cotton t-shirt." },
-    { "id": "p-002", "title": "Ceramic Mug", "price": 9.50, "currency": "EUR", "image": "", "category": "Accessories", "excerpt": "Clean design, perfect for the office.", "description": "350ml mug, dishwasher safe." },
-    { "id": "p-003", "title": "Classic Hoodie", "price": 39.00, "currency": "EUR", "image": "", "category": "Clothing", "excerpt": "Unisex, perfect for everyday wear.", "description": "Soft, warm, versatile." },
-    { "id": "p-004", "title": "A5 Notebook", "price": 7.90, "currency": "EUR", "image": "", "category": "Stationery", "excerpt": "For notes and planning.", "description": "90gsm paper, hardcover." }
+    { "id": "p-001", "title": "Minimalist T-shirt", "price": 19.99, "currency": "EUR", "image": "", "category": "Clothing", "excerpt": "Regular fit, extra comfort.", "description": "100% cotton t-shirt.", "stripePrice": "price_1SCoe9A1SwQpS6KlIB37xT6n"},
+    { "id": "p-002", "title": "Ceramic Mug", "price": 9.50, "currency": "EUR", "image": "", "category": "Accessories", "excerpt": "Clean design, perfect for the office.", "description": "350ml mug, dishwasher safe.", "stripePrice": "price_1SCoiBA1SwQpS6KljHYhw1u0"},
+    { "id": "p-003", "title": "Classic Hoodie", "price": 39.00, "currency": "EUR", "image": "", "category": "Clothing", "excerpt": "Unisex, perfect for everyday wear.", "description": "Soft, warm, versatile.", "stripePrice": "price_1SCojyA1SwQpS6KlmG31B34I"},
+    { "id": "p-004", "title": "A5 Notebook", "price": 7.90, "currency": "EUR", "image": "", "category": "Stationery", "excerpt": "For notes and planning.", "description": "90gsm paper, hardcover.", "stripePrice": "price_1SColCA1SwQpS6Kl9q0ozfWR"}
   ]
   
