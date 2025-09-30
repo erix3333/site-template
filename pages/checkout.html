@@ -264,43 +264,45 @@
     }
 
     // ===== LOAD CART INTO SUMMARY =====
-    (async () => {
-      const PRODUCTS_URL = `${location.origin}/products.json`; // ✅ absolute path
-      try {
-        const r = await fetch(PRODUCTS_URL, { cache:'no-cache' });
-        if (!r.ok) throw new Error(`Failed to load products.json: ${r.status}`);
-        const PRODUCTS = await r.json();
+  (async () => {
+    // ✅ uses BASE from app.js (../ when in /pages/, . when at root)
+    const PRODUCTS_URL = `${BASE}/products.json`;
+    try {
+      const r = await fetch(PRODUCTS_URL, { cache:'no-cache' });
+      if (!r.ok) throw new Error(`Failed to load ${PRODUCTS_URL}: ${r.status}`);
+      const PRODUCTS = await r.json();
 
-        const itemsWrap = $('#summaryItems');
-        itemsWrap.innerHTML = '';
-        subtotal = 0;
+      const itemsWrap = document.getElementById('summaryItems');
+      itemsWrap.innerHTML = '';
+      subtotal = 0;
 
-        for(const id in cart){
-          const p = PRODUCTS.find(x=>x.id===id); if(!p) continue;
-          const qty = cart[id];
-          const sum = p.price * qty;
-          subtotal += sum;
+      for (const id in cart) {
+        const p = PRODUCTS.find(x => String(x.id) === String(id));
+        if (!p) continue;
+        const qty = cart[id];
+        const sum = p.price * qty;
+        subtotal += sum;
 
-          const row = document.createElement('div');
-          row.className = 'sum-item';
-          row.innerHTML = `
-            <div class="si-left">
-              <div class="si-thumb" style="background-image:${p.image ? `url(${p.image})` : 'none'}"></div>
-              <div class="si-meta">
-                <div class="si-title">${p.title}</div>
-                <div class="muted tiny">${qty} × ${money(p.price)}</div>
-              </div>
+        const row = document.createElement('div');
+        row.className = 'sum-item';
+        row.innerHTML = `
+          <div class="si-left">
+            <div class="si-thumb" style="background-image:${p.image ? `url(${p.image})` : 'none'}"></div>
+            <div class="si-meta">
+              <div class="si-title">${p.title}</div>
+              <div class="muted tiny">${qty} × ${money(p.price)}</div>
             </div>
-            <div class="si-right">${money(sum)}</div>`;
-          itemsWrap.appendChild(row);
-        }
-
-        setShippingBySelections();
-      } catch (err) {
-        console.error(err);
-        alert('Could not load products. Please refresh and try again.');
+          </div>
+          <div class="si-right">${money(sum)}</div>`;
+        itemsWrap.appendChild(row);
       }
-    })();
+
+      setShippingBySelections();
+    } catch (err) {
+      console.error(err);
+      alert('Could not load products. Please refresh and try again.');
+    }
+  })();
 
     // promo
     $('#applyPromo').addEventListener('click', ()=>{
