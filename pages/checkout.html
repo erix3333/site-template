@@ -184,8 +184,8 @@
     const FREE_SHIP_THRESHOLD_EUR = 65;
 
     // ===== STATE =====
-    const cart = JSON.parse(localStorage.getItem('cart')||'{}');
-    if (!Object.keys(cart).length) location.href = '../index.html#products';
+    const cartMap = JSON.parse(localStorage.getItem('cart') || '{}');
+    if (!Object.keys(cartMap).length) location.href = '../index.html#products';
 
     let subtotal = 0;
     let discount = 0;
@@ -278,11 +278,11 @@
       itemsWrap.innerHTML = '';
       subtotal = 0;
 
-      for (const id in cart) {
+      for (const id in cartMap) {
         const p = PRODUCTS.find(x => String(x.id) === String(id));
         if (!p) { console.warn('[checkout] product id not found in catalog:', id); continue; }
 
-        const qty = cart[id];
+        const qty = cartMap[id];
         const sum = p.price * qty;
         subtotal += sum;
 
@@ -351,8 +351,7 @@
       for (let i=0;i<3;i++){ if (!validateStep(i)) { showStep(i); return; } }
 
       const data = Object.fromEntries(new FormData(e.target));
-      const cartObj = JSON.parse(localStorage.getItem('cart')||'{}');
-      const items = Object.keys(cartObj).map(id => ({ id, qty: cartObj[id] }));
+      const items = Object.keys(cartMap).map(id => ({ id, qty: cartMap[id] }));
 
       try {
         const r = await fetch('/api/create-checkout-session', {
