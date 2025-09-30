@@ -265,10 +265,12 @@
 
     // ===== LOAD CART INTO SUMMARY =====
   (async () => {
-    // ✅ uses BASE from app.js (../ when in /pages/, . when at root)
+    // ✅ use BASE from app.js so it works at / and at /pages/
     const PRODUCTS_URL = `${BASE}/products.json`;
+    console.log('[checkout] href:', location.href, 'pathname:', location.pathname, 'BASE:', BASE, 'fetch:', PRODUCTS_URL);
+
     try {
-      const r = await fetch(PRODUCTS_URL, { cache:'no-cache' });
+      const r = await fetch(PRODUCTS_URL, { cache: 'no-cache' });
       if (!r.ok) throw new Error(`Failed to load ${PRODUCTS_URL}: ${r.status}`);
       const PRODUCTS = await r.json();
 
@@ -278,7 +280,8 @@
 
       for (const id in cart) {
         const p = PRODUCTS.find(x => String(x.id) === String(id));
-        if (!p) continue;
+        if (!p) { console.warn('[checkout] product id not found in catalog:', id); continue; }
+
         const qty = cart[id];
         const sum = p.price * qty;
         subtotal += sum;
@@ -299,7 +302,7 @@
 
       setShippingBySelections();
     } catch (err) {
-      console.error(err);
+      console.error('[checkout] products load error', err);
       alert('Could not load products. Please refresh and try again.');
     }
   })();
