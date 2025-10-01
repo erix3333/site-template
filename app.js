@@ -3,7 +3,8 @@ const IS_SUBPAGE = /\/pages\//.test(location.pathname);
 const BASE = IS_SUBPAGE ? '..' : '.';
 
 // --- Config ---
-const PRODUCTS_URL = `${BASE}/products.json`;
+// const PRODUCTS_URL = `${BASE}/products.json`;
+const PRODUCTS_URL = `${BASE}/api/catalog`; // ← new
 
 // Site config (logo path & name)
 const SITE = {
