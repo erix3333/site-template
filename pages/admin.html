@@ -1,183 +1,498 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Admin — Products</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="../styles.css" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Catalog Admin — Shop Name</title>
+  <link rel="stylesheet" href="../styles.css"/>
   <style>
-    .admin { max-width:1000px; margin:24px auto; display:grid; gap:18px }
-    table{ width:100%; border-collapse: collapse; }
-    th, td{ border-bottom:1px solid var(--line); padding:8px; vertical-align: top; }
-    .row-actions{ display:flex; gap:8px; }
-    .stack{ display:grid; gap:8px }
-    .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:8px }
-    .muted small{ display:block; margin-top:6px }
-    .danger{ border-color:#c00; color:#c00 }
+    :root{ --accent:#111; --bad:#e0002b; --good:#0a7d2b; --warn:#b57f00; }
+    body{ padding:18px; }
+    h1{ margin:0 0 10px; }
+    .topbar{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:12px }
+    .topbar .btn{ padding:8px 12px }
+    .muted{ color:#6b6b6b; }
+    .kpi{ display:flex; gap:14px; align-items:center; flex-wrap:wrap; font-size:13px; margin:10px 0 }
+    .pill{ border:1px solid var(--line); border-radius:999px; padding:6px 10px; background:#fff }
+    .search{ flex:1; display:flex; gap:8px; align-items:center }
+    .search input{ flex:1; padding:10px 12px; border:1px solid var(--line); border-radius:10px; }
+
+    /* Textarea (raw JSON) */
+    .zone{ display:grid; gap:8px; margin:14px 0 }
+    textarea#jsonInput{
+      width:100%; height:220px; font:13px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      border:1px solid var(--line); border-radius:10px; padding:12px; background:#fff;
+    }
+
+    /* Table */
+    table{ width:100%; border-collapse:collapse; margin-top:10px; background:#fff; }
+    thead th{
+      position:sticky; top:0; background:#fafafa; border-bottom:1px solid var(--line);
+      text-align:left; padding:10px; font-weight:700; font-size:13px;
+    }
+    tbody td{ border-top:1px solid var(--line); padding:6px; vertical-align:top; }
+    tbody tr:hover{ background:#fffdf7 }
+    .selcell{ width:34px; text-align:center }
+    .img-prev{ width:48px; height:36px; border:1px solid var(--line); border-radius:8px; background:#f5f5f5; background-size:cover; background-position:center; }
+    .tiny{ font-size:12px }
+    input.cell, textarea.cell, select.cell{
+      width:100%; border:1px solid var(--line); border-radius:8px; padding:8px 10px; background:#fff;
+      font: 13px/1.3 "Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    textarea.cell{ min-height:52px; resize:vertical }
+    td.error .cell{ border-color: var(--bad); background:#fff2f5 }
+    .hint{ font-size:11px; color:#777; margin-top:2px }
+    .status{ margin-top:10px; font-size:13px }
+    .status .ok{ color:var(--good) }
+    .status .bad{ color:var(--bad) }
+    .status .warn{ color:var(--warn) }
+
+    .btn-row{ display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 }
+    .btn.primary{ background:#000; color:#fff; border-color:#000 }
+    .btn.danger{ border-color:var(--bad); color:var(--bad) }
+    .btn.ghost{ border-color:var(--line); }
+
+    .sticky-help{
+      position:sticky; bottom:0; background:#fff; border-top:1px solid var(--line);
+      padding:10px; display:flex; justify-content:space-between; align-items:center; gap:10px;
+    }
+    .note{ font-size:12px; color:#555 }
+    .cap{ text-transform:uppercase; letter-spacing:.02em; font-weight:700; font-size:12px; }
   </style>
 </head>
 <body>
-<header class="site-header"><div class="wrap header-inner"><strong>Admin</strong><a class="btn" href="../index.html">View Store</a></div></header>
-<main class="wrap admin">
-  <section class="panel">
-    <div class="row" style="justify-content:space-between; align-items:center">
-      <h2 class="section-title">Products</h2>
-      <div class="row" style="gap:8px">
-        <input id="adminKey" placeholder="Admin key…" />
-        <button class="btn" id="saveKey">Save key</button>
-        <button class="btn" id="refresh">Refresh</button>
-      </div>
+  <h1>Catalog Admin</h1>
+
+  <div class="topbar">
+    <div class="btn-row">
+      <button id="loadServer" class="btn">Load from server</button>
+      <button id="loadTextarea" class="btn">Load from textarea</button>
+      <button id="toJson" class="btn ghost">Table → JSON</button>
+      <button id="downloadJson" class="btn">Download JSON</button>
     </div>
-    <div id="status" class="muted">Enter your Admin key to edit.</div>
-    <table id="ptable">
-      <thead><tr><th>ID</th><th>Title</th><th>Price (€)</th><th>Image</th><th>Category</th><th>Actions</th></tr></thead>
-      <tbody></tbody>
-    </table>
-  </section>
+    <div class="search">
+      <input id="q" placeholder="Filter by title, id, category…"/>
+      <button id="clearQ" class="btn ghost">Clear</button>
+    </div>
+  </div>
 
-  <section class="panel">
-    <h3>Add / Edit Product</h3>
-    <form id="pform" class="stack">
-      <div class="grid2">
-        <label>ID <input name="id" required /></label>
-        <label>Title <input name="title" required /></label>
-      </div>
-      <div class="grid2">
-        <label>Price (€) <input name="price" type="number" step="0.01" required /></label>
-        <label>Category <input name="category" /></label>
-      </div>
-      <label>Excerpt <input name="excerpt" /></label>
-      <label>Description <textarea name="description" rows="3"></textarea></label>
-      <label>Image URL <input name="image" placeholder="https://…"/></label>
-      <div class="row" style="gap:8px; align-items:center">
-        <input type="file" id="imgfile" accept="image/*"/>
-        <button class="btn" id="upload" type="button">Upload image</button>
-        <span class="muted tiny">Or paste URL above.</span>
-      </div>
-      <div class="row" style="gap:8px">
-        <button class="btn primary" type="submit">Save / Upsert</button>
-        <button class="btn danger" id="delete" type="button">Delete</button>
-        <button class="btn" id="reset" type="button">Clear form</button>
-      </div>
-      <div class="muted"><small>Edits are live immediately. Storefront and checkout read from <code>/api/catalog</code>.</small></div>
-    </form>
-  </section>
-</main>
+  <div class="kpi">
+    <span class="pill"><span class="cap">Items:</span> <b id="kItems">0</b></span>
+    <span class="pill"><span class="cap">With Stripe ID:</span> <b id="kStripe">0</b></span>
+    <span class="pill"><span class="cap">Hidden / invalid:</span> <b id="kInvalid">0</b></span>
+  </div>
 
-<script>
-const $ = s => document.querySelector(s);
-const keyStore = {
-  get(){ return localStorage.getItem('ADMIN_KEY') || ''; },
-  set(v){ localStorage.setItem('ADMIN_KEY', v||''); }
-};
-$('#adminKey').value = keyStore.get();
+  <div class="zone">
+    <label class="cap">Raw JSON (paste here if you want)</label>
+    <textarea id="jsonInput" placeholder='[ { "id":"p-001", "title":"T-shirt", "price":19.99, "category":"Clothing", "excerpt":"", "description":"", "image":"", "stock": 12, "stripePrice": "price_..." } ]'></textarea>
+    <div class="btn-row">
+      <button id="validateJson" class="btn">Validate JSON</button>
+      <button id="pretty" class="btn ghost">Prettify</button>
+    </div>
+    <div class="status" id="jsonStatus"></div>
+  </div>
 
-function authHeaders(){
-  const k = keyStore.get();
-  return k ? { 'Authorization': 'Bearer ' + k } : {};
-}
+  <div class="btn-row">
+    <button id="addRow" class="btn">+ Add product</button>
+    <button id="dupRow" class="btn">Duplicate selected</button>
+    <button id="delRow" class="btn danger">Delete selected</button>
+    <button id="sortTitle" class="btn ghost">Sort by Title</button>
+    <button id="sortPrice" class="btn ghost">Sort by Price</button>
+  </div>
 
-async function loadTable(){
-  $('#status').textContent = 'Loading…';
-  const r = await fetch('/api/catalog', { cache: 'no-store' });
-  const list = await r.json();
-  const tb = $('#ptable tbody');
-  tb.innerHTML = '';
-  list.forEach(p=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${p.id}</td>
-      <td>${p.title || ''}</td>
-      <td>${Number(p.price||0).toFixed(2)}</td>
-      <td>${p.image ? `<a href="${p.image}" target="_blank">view</a>` : '—'}</td>
-      <td>${p.category || ''}</td>
-      <td class="row-actions">
-        <button class="btn" data-edit="${p.id}">Edit</button>
-      </td>`;
-    tb.appendChild(tr);
-  });
-  $('#status').textContent = `Loaded ${list.length} product(s).`;
-}
+  <table id="tbl">
+    <thead>
+      <tr>
+        <th class="selcell"><input type="checkbox" id="selAll"></th>
+        <th>Preview</th>
+        <th>ID</th>
+        <th>Title</th>
+        <th>Price €</th>
+        <th>Category</th>
+        <th>Excerpt</th>
+        <th>Description</th>
+        <th>Image URL</th>
+        <th>Stock</th>
+        <th>Stripe Price ID</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
 
-$('#refresh').addEventListener('click', loadTable);
-$('#saveKey').addEventListener('click', ()=>{ keyStore.set($('#adminKey').value.trim()); alert('Saved.'); });
+  <div class="sticky-help">
+    <div class="note">
+      <b>Export:</b> Click <i>Table → JSON</i> then <i>Download JSON</i>. Replace your project’s <code>products.json</code> with the file.
+    </div>
+    <div class="note">
+      <b>Tips:</b> Red cells are invalid; hover for hints. Empty <i>stock</i> means unlimited.
+    </div>
+  </div>
 
-document.addEventListener('click', async (e)=>{
-  const b = e.target.closest('button[data-edit]');
-  if (!b) return;
-  const id = b.getAttribute('data-edit');
+  <script>
+    // ---------- Config ----------
+    const COLS = [
+      { key:'id',          label:'ID',          type:'text',    req:true },
+      { key:'title',       label:'Title',       type:'text',    req:true },
+      { key:'price',       label:'Price €',     type:'number',  req:true, min:0 },
+      { key:'category',    label:'Category',    type:'text' },
+      { key:'excerpt',     label:'Excerpt',     type:'textarea' },
+      { key:'description', label:'Description', type:'textarea' },
+      { key:'image',       label:'Image URL',   type:'text' },
+      { key:'stock',       label:'Stock',       type:'number',  min:0, integer:true, allowBlank:true },
+      { key:'stripePrice', label:'Stripe Price',type:'text' },
+    ];
 
-  const r = await fetch('/api/catalog');
-  const list = await r.json();
-  const p = list.find(x => String(x.id) === String(id));
-  if (!p) return alert('Not found');
+    const $ = (s, el=document)=> el.querySelector(s);
+    const $$ = (s, el=document)=> Array.from(el.querySelectorAll(s));
 
-  const f = $('#pform');
-  for (const k of ['id','title','price','category','excerpt','description','image']){
-    if (f[k]) f[k].value = (p[k] ?? '');
-  }
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-});
+    const tbody = $('#tbody');
+    const txt = $('#jsonInput');
+    const status = $('#jsonStatus');
 
-$('#reset').addEventListener('click', ()=>{
-  $('#pform').reset();
-});
+    let products = [];
+    let filterQ = '';
+    let sortKey = null, sortDir = 1;
 
-$('#delete').addEventListener('click', async ()=>{
-  const id = $('#pform').id.value.trim();
-  if (!id) return alert('Fill the ID to delete.');
-  if (!confirm('Delete product ' + id + '?')) return;
+    // ---------- Loaders ----------
+    async function loadFromServer(){
+      const tryUrls = ['../products.json', '/products.json'];
+      for (const u of tryUrls){
+        try{
+          const r = await fetch(u, { cache:'no-cache' });
+          if (!r.ok) continue;
+          const j = await r.json();
+          setProducts(j);
+          txt.value = JSON.stringify(j, null, 2);
+          info(`Loaded ${j.length} products from <code>${u}</code>.`);
+          return;
+        }catch(e){}
+      }
+      error(`Could not load <code>products.json</code> from server.`);
+    }
 
-  const r = await fetch('/api/catalog?id=' + encodeURIComponent(id), {
-    method: 'DELETE',
-    headers: { ...authHeaders() }
-  });
-  const j = await r.json();
-  if (!r.ok) return alert(j.error || 'Delete failed');
-  alert('Deleted.');
-  $('#pform').reset();
-  loadTable();
-});
+    function loadFromTextarea(){
+      try{
+        const j = JSON.parse(txt.value);
+        setProducts(j);
+        info(`Loaded ${j.length} products from textarea.`);
+      }catch(e){
+        error('Invalid JSON: ' + e.message);
+      }
+    }
 
-$('#pform').addEventListener('submit', async (e)=>{
-  e.preventDefault();
-  const f = e.target;
-  const data = Object.fromEntries(new FormData(f).entries());
-  data.price = Number(data.price || 0);
+    function setProducts(arr){
+      if (!Array.isArray(arr)) { error('Catalog must be an array.'); return; }
+      products = arr.map(x => ({ ...x }));
+      applyFilterSort();
+      render();
+      updateKpi();
+    }
 
-  const r = await fetch('/api/catalog', {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify(data)
-  });
-  const j = await r.json();
-  if (!r.ok) return alert(j.error || 'Save failed');
-  alert('Saved.');
-  loadTable();
-});
+    // ---------- Render ----------
+    function render(){
+      tbody.innerHTML = '';
+      const rows = getVisibleRows();
+      rows.forEach((p, i) => {
+        const tr = document.createElement('tr');
 
-// Image upload → Blob
-$('#upload').addEventListener('click', async ()=>{
-  const file = $('#imgfile').files?.[0];
-  if (!file) return alert('Choose an image first.');
-  const reader = new FileReader();
-  reader.onload = async ()=> {
-    const base64 = reader.result; // data URL
-    const r = await fetch('/api/signed-upload', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ filename: file.name, base64 })
-    });
-    const j = await r.json();
-    if (!r.ok) return alert(j.error || 'Upload failed');
-    $('#pform').image.value = j.url;
-    alert('Uploaded. Image URL set.');
-  };
-  reader.readAsDataURL(file);
-});
+        // selection
+        const tdSel = document.createElement('td');
+        tdSel.className = 'selcell';
+        tdSel.innerHTML = `<input type="checkbox" class="sel">`;
+        tr.appendChild(tdSel);
 
-// initial
-loadTable();
-</script>
+        // preview
+        const tdPrev = document.createElement('td');
+        tdPrev.innerHTML = `<div class="img-prev" style="background-image:${p.image ? `url(${p.image})` : 'none'}"></div>`;
+        tr.appendChild(tdPrev);
+
+        // cells
+        addCell(tr, 'id',          p, i);
+        addCell(tr, 'title',       p, i);
+        addCell(tr, 'price',       p, i);
+        addCell(tr, 'category',    p, i);
+        addCell(tr, 'excerpt',     p, i, true);
+        addCell(tr, 'description', p, i, true);
+        addCell(tr, 'image',       p, i);
+        addCell(tr, 'stock',       p, i);
+        addCell(tr, 'stripePrice', p, i);
+
+        tbody.appendChild(tr);
+      });
+
+      // bind selection all
+      $('#selAll').checked = false;
+    }
+
+    function addCell(tr, key, p, idx, isLong){
+      const td = document.createElement('td');
+      const col = COLS.find(c=>c.key===key);
+      const val = (p[key] ?? '');
+      const isTextarea = (col?.type === 'textarea') || isLong;
+
+      const input = isTextarea
+        ? document.createElement('textarea')
+        : document.createElement('input');
+
+      input.className = 'cell';
+      input.value = val;
+      input.dataset.key = key;
+      input.dataset.idx = idx;
+      if (col?.type === 'number') input.type = 'number';
+      if (col?.min != null) input.min = col.min;
+
+      input.addEventListener('input', () => {
+        const i = Number(input.dataset.idx);
+        const k = input.dataset.key;
+        const v = sanitizeInput(k, input.value);
+        products[i][k] = v;
+        // live update preview image
+        if (k === 'image'){
+          const prev = tr.querySelector('.img-prev');
+          prev.style.backgroundImage = v ? `url(${v})` : 'none';
+        }
+        validateRow(tr, products[i]);
+        saveDraft();
+        updateKpi();
+      });
+
+      td.appendChild(input);
+      // hint
+      const hint = document.createElement('div');
+      hint.className = 'hint';
+      hint.textContent = hintText(key);
+      td.appendChild(hint);
+
+      // initial validation
+      if (!validateField(key, val, products[idx])) td.classList.add('error');
+      tr.appendChild(td);
+    }
+
+    // ---------- Validation ----------
+    function hintText(key){
+      switch(key){
+        case 'id': return 'Unique id, e.g. p-001';
+        case 'price': return 'Number, EUR (e.g. 19.99)';
+        case 'stock': return 'Leave blank = unlimited; else integer ≥ 0';
+        case 'stripePrice': return 'Stripe Price object id (starts with price_)';
+        case 'image': return 'URL (optional)';
+        default: return '';
+      }
+    }
+
+    function sanitizeInput(key, val){
+      if (key === 'price')  return val === '' ? '' : Number(val);
+      if (key === 'stock')  return val === '' ? '' : parseInt(val, 10);
+      return val;
+    }
+
+    function validateField(key, val, row){
+      const col = COLS.find(c=>c.key===key);
+      if (!col) return true;
+
+      if (col.req && (val === '' || val == null)) return false;
+
+      if (key === 'id'){
+        if (String(val).trim() === '') return false;
+      }
+      if (key === 'price'){
+        if (val === '' || isNaN(val) || Number(val) < 0) return false;
+      }
+      if (key === 'stock'){
+        if (val === '') return true; // blank = unlimited
+        if (!Number.isInteger(val) || val < 0) return false;
+      }
+      if (key === 'stripePrice'){
+        if (val === '') return true; // optional
+        if (!/^price_[A-Za-z0-9]+$/.test(String(val))) return false;
+      }
+      if (key === 'image'){
+        if (val === '') return true;
+        try { new URL(val); } catch(e){ return false; }
+      }
+      return true;
+    }
+
+    function validateRow(tr, row){
+      // per-field
+      $$('td', tr).forEach(td => td.classList.remove('error'));
+      COLS.forEach(c=>{
+        const cell = $$('td', tr).find(td => td.querySelector('.cell')?.dataset.key === c.key);
+        if (!cell) return;
+        const ok = validateField(c.key, row[c.key] ?? '', row);
+        if (!ok) cell.classList.add('error');
+      });
+    }
+
+    function validateAll(showMsg=true){
+      // field rules
+      let bad = 0;
+      $$('tr', tbody).forEach((tr, i) => validateRow(tr, getVisibleRows()[i]));
+      // duplicate id
+      const ids = products.map(p => String(p.id||'').trim());
+      const dup = ids.filter((id, i) => id && ids.indexOf(id) !== i);
+      if (dup.length) bad++;
+
+      // required presence
+      const missing = products.filter(p => !p.id || !p.title || (p.price==='' || p.price==null));
+
+      const msg = [];
+      if (dup.length) msg.push(`❌ Duplicate id(s): ${unique(dup).join(', ')}`);
+      if (missing.length) msg.push(`❌ ${missing.length} row(s) missing required fields (id/title/price).`);
+      if (!dup.length && !missing.length) msg.push('✅ Basic validation OK.');
+      if (showMsg) status.innerHTML = msg.join('<br/>');
+
+      // count invalid cells visible
+      const invalidCells = $$('.error', tbody).length;
+      $('#kInvalid').textContent = invalidCells;
+      return invalidCells === 0 && dup.length === 0 && missing.length === 0;
+    }
+
+    const unique = arr => [...new Set(arr)];
+
+    // ---------- Filter / Sort ----------
+    function getVisibleRows(){
+      const q = filterQ.trim().toLowerCase();
+      let rows = products.filter(p => {
+        if (!q) return true;
+        const bag = [
+          p.id, p.title, p.category, p.excerpt, p.description, p.stripePrice
+        ].map(x => (x||'').toString().toLowerCase()).join(' ');
+        return bag.includes(q);
+      });
+
+      if (sortKey){
+        rows = rows.slice().sort((a,b)=>{
+          const A = a[sortKey] ?? '';
+          const B = b[sortKey] ?? '';
+          if (typeof A === 'number' && typeof B === 'number') return (A-B)*sortDir;
+          return String(A).localeCompare(String(B), 'en') * sortDir;
+        });
+      }
+      return rows;
+    }
+
+    function applyFilterSort(){
+      // nothing to compute yet; render uses products directly
+    }
+
+    // ---------- Buttons ----------
+    $('#loadServer').onclick = loadFromServer;
+    $('#loadTextarea').onclick = loadFromTextarea;
+    $('#toJson').onclick = () => {
+      if (!validateAll(false)) info('Exported with warnings. Fix red cells and duplicates if possible.');
+      txt.value = JSON.stringify(products, null, 2);
+      info('Table exported to JSON textarea.');
+    };
+    $('#downloadJson').onclick = () => {
+      // ensure textarea is up to date
+      $('#toJson').click();
+      const blob = new Blob([txt.value], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'products.json';
+      a.click();
+    };
+    $('#validateJson').onclick = () => {
+      try { JSON.parse(txt.value); ok('✅ JSON parses fine.'); }
+      catch(e){ error('❌ JSON invalid: ' + e.message); }
+    };
+    $('#pretty').onclick = () => {
+      try { txt.value = JSON.stringify(JSON.parse(txt.value), null, 2); }
+      catch(e){ /* ignore */ }
+    };
+
+    $('#addRow').onclick = () => {
+      const id = suggestId();
+      products.push({ id, title:'New product', price:0, category:'', excerpt:'', description:'', image:'', stock:'', stripePrice:'' });
+      render(); updateKpi();
+      info(`Added product ${id}.`);
+    };
+    $('#dupRow').onclick = () => {
+      const rows = $$('tr', tbody);
+      rows.forEach((tr, i) => {
+        if (tr.querySelector('.sel')?.checked){
+          const src = getVisibleRows()[i];
+          const copy = { ...src, id: suggestId(src.id || 'p') };
+          products.push(copy);
+        }
+      });
+      render(); updateKpi();
+      info('Duplicated selected rows.');
+    };
+    $('#delRow').onclick = () => {
+      const rows = $$('tr', tbody);
+      const keep = [];
+      let removed = 0;
+      let vis = getVisibleRows();
+      products.forEach(p => {
+        const idx = vis.indexOf(p);
+        const tr = rows[idx];
+        const sel = tr?.querySelector('.sel')?.checked;
+        if (!sel) keep.push(p); else removed++;
+      });
+      products = keep;
+      render(); updateKpi();
+      info(`Deleted ${removed} row(s).`);
+    };
+    $('#sortTitle').onclick = () => { toggleSort('title'); };
+    $('#sortPrice').onclick = () => { toggleSort('price'); };
+
+    function toggleSort(key){
+      if (sortKey === key) sortDir *= -1;
+      else { sortKey = key; sortDir = 1; }
+      render();
+    }
+
+    // Filter
+    $('#q').addEventListener('input', e => { filterQ = e.target.value; render(); });
+    $('#clearQ').onclick = () => { $('#q').value=''; filterQ=''; render(); };
+
+    // Select all
+    $('#selAll').onclick = (e) => {
+      $$('.sel', tbody).forEach(cb => cb.checked = e.target.checked);
+    };
+
+    // ---------- Helpers ----------
+    function ok(msg){ status.innerHTML = `<span class="ok">${msg}</span>`; }
+    function info(msg){ status.innerHTML = msg; }
+    function error(msg){ status.innerHTML = `<span class="bad">${msg}</span>`; }
+
+    function suggestId(seed='p'){
+      const base = String(seed).replace(/[^a-z0-9\-]/gi,'') || 'p';
+      let i = 1;
+      const have = new Set(products.map(p => String(p.id)));
+      let id = `${base}-${String(i).padStart(3,'0')}`;
+      while (have.has(id)) { i++; id = `${base}-${String(i).padStart(3,'0')}`; }
+      return id;
+    }
+
+    function saveDraft(){
+      try { localStorage.setItem('adminDraft', JSON.stringify(products)); } catch(e){}
+    }
+    function loadDraft(){
+      try {
+        const raw = localStorage.getItem('adminDraft');
+        if (!raw) return false;
+        const j = JSON.parse(raw);
+        if (Array.isArray(j) && j.length) { setProducts(j); txt.value = JSON.stringify(j, null, 2); info('Loaded draft from localStorage.'); return true; }
+      }catch(e){}
+      return false;
+    }
+
+    function updateKpi(){
+      $('#kItems').textContent  = products.length;
+      $('#kStripe').textContent = products.filter(p => (p.stripePrice||'').startsWith('price_')).length;
+      validateAll(false);
+    }
+
+    // ---------- Boot ----------
+    (async function init(){
+      if (!loadDraft()) {
+        // try auto load from server; if it fails, leave empty
+        await loadFromServer().catch(()=>{});
+      }
+    })();
+  </script>
 </body>
 </html>
