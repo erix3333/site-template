@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Admin — Products</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="../styles.css" />
+  <style>
+    .admin { max-width:1000px; margin:24px auto; display:grid; gap:18px }
+    table{ width:100%; border-collapse: collapse; }
+    th, td{ border-bottom:1px solid var(--line); padding:8px; vertical-align: top; }
+    .row-actions{ display:flex; gap:8px; }
+    .stack{ display:grid; gap:8px }
+    .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:8px }
+    .muted small{ display:block; margin-top:6px }
+    .danger{ border-color:#c00; color:#c00 }
+  </style>
+</head>
+<body>
+<header class="site-header"><div class="wrap header-inner"><strong>Admin</strong><a class="btn" href="../index.html">View Store</a></div></header>
+<main class="wrap admin">
+  <section class="panel">
+    <div class="row" style="justify-content:space-between; align-items:center">
+      <h2 class="section-title">Products</h2>
+      <div class="row" style="gap:8px">
+        <input id="adminKey" placeholder="Admin key…" />
+        <button class="btn" id="saveKey">Save key</button>
+        <button class="btn" id="refresh">Refresh</button>
+      </div>
+    </div>
+    <div id="status" class="muted">Enter your Admin key to edit.</div>
+    <table id="ptable">
+      <thead><tr><th>ID</th><th>Title</th><th>Price (€)</th><th>Image</th><th>Category</th><th>Actions</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section class="panel">
+    <h3>Add / Edit Product</h3>
+    <form id="pform" class="stack">
+      <div class="grid2">
+        <label>ID <input name="id" required /></label>
+        <label>Title <input name="title" required /></label>
+      </div>
+      <div class="grid2">
+        <label>Price (€) <input name="price" type="number" step="0.01" required /></label>
+        <label>Category <input name="category" /></label>
+      </div>
+      <label>Excerpt <input name="excerpt" /></label>
+      <label>Description <textarea name="description" rows="3"></textarea></label>
+      <label>Image URL <input name="image" placeholder="https://…"/></label>
+      <div class="row" style="gap:8px; align-items:center">
+        <input type="file" id="imgfile" accept="image/*"/>
+        <button class="btn" id="upload" type="button">Upload image</button>
+        <span class="muted tiny">Or paste URL above.</span>
+      </div>
+      <div class="row" style="gap:8px">
+        <button class="btn primary" type="submit">Save / Upsert</button>
+        <button class="btn danger" id="delete" type="button">Delete</button>
+        <button class="btn" id="reset" type="button">Clear form</button>
+      </div>
+      <div class="muted"><small>Edits are live immediately. Storefront and checkout read from <code>/api/catalog</code>.</small></div>
+    </form>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const keyStore = {
+  get(){ return localStorage.getItem('ADMIN_KEY') || ''; },
+  set(v){ localStorage.setItem('ADMIN_KEY', v||''); }
+};
+$('#adminKey').value = keyStore.get();
+
+function authHeaders(){
+  const k = keyStore.get();
+  return k ? { 'Authorization': 'Bearer ' + k } : {};
+}
+
+async function loadTable(){
+  $('#status').textContent = 'Loading…';
+  const r = await fetch('/api/catalog', { cache: 'no-store' });
+  const list = await r.json();
+  const tb = $('#ptable tbody');
+  tb.innerHTML = '';
+  list.forEach(p=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${p.id}</td>
+      <td>${p.title || ''}</td>
+      <td>${Number(p.price||0).toFixed(2)}</td>
+      <td>${p.image ? `<a href="${p.image}" target="_blank">view</a>` : '—'}</td>
+      <td>${p.category || ''}</td>
+      <td class="row-actions">
+        <button class="btn" data-edit="${p.id}">Edit</button>
+      </td>`;
+    tb.appendChild(tr);
+  });
+  $('#status').textContent = `Loaded ${list.length} product(s).`;
+}
+
+$('#refresh').addEventListener('click', loadTable);
+$('#saveKey').addEventListener('click', ()=>{ keyStore.set($('#adminKey').value.trim()); alert('Saved.'); });
+
+document.addEventListener('click', async (e)=>{
+  const b = e.target.closest('button[data-edit]');
+  if (!b) return;
+  const id = b.getAttribute('data-edit');
+
+  const r = await fetch('/api/catalog');
+  const list = await r.json();
+  const p = list.find(x => String(x.id) === String(id));
+  if (!p) return alert('Not found');
+
+  const f = $('#pform');
+  for (const k of ['id','title','price','category','excerpt','description','image']){
+    if (f[k]) f[k].value = (p[k] ?? '');
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+$('#reset').addEventListener('click', ()=>{
+  $('#pform').reset();
+});
+
+$('#delete').addEventListener('click', async ()=>{
+  const id = $('#pform').id.value.trim();
+  if (!id) return alert('Fill the ID to delete.');
+  if (!confirm('Delete product ' + id + '?')) return;
+
+  const r = await fetch('/api/catalog?id=' + encodeURIComponent(id), {
+    method: 'DELETE',
+    headers: { ...authHeaders() }
+  });
+  const j = await r.json();
+  if (!r.ok) return alert(j.error || 'Delete failed');
+  alert('Deleted.');
+  $('#pform').reset();
+  loadTable();
+});
+
+$('#pform').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const f = e.target;
+  const data = Object.fromEntries(new FormData(f).entries());
+  data.price = Number(data.price || 0);
+
+  const r = await fetch('/api/catalog', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(data)
+  });
+  const j = await r.json();
+  if (!r.ok) return alert(j.error || 'Save failed');
+  alert('Saved.');
+  loadTable();
+});
+
+// Image upload → Blob
+$('#upload').addEventListener('click', async ()=>{
+  const file = $('#imgfile').files?.[0];
+  if (!file) return alert('Choose an image first.');
+  const reader = new FileReader();
+  reader.onload = async ()=> {
+    const base64 = reader.result; // data URL
+    const r = await fetch('/api/signed-upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ filename: file.name, base64 })
+    });
+    const j = await r.json();
+    if (!r.ok) return alert(j.error || 'Upload failed');
+    $('#pform').image.value = j.url;
+    alert('Uploaded. Image URL set.');
+  };
+  reader.readAsDataURL(file);
+});
+
+// initial
+loadTable();
+</script>
+</body>
+</html>
