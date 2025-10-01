@@ -266,7 +266,7 @@
     // ===== LOAD CART INTO SUMMARY =====
   (async () => {
     // ✅ use BASE from app.js so it works at / and at /pages/
-    const PRODUCTS_URL = `${BASE}/products.json`;
+    const PRODUCTS_URL = `${location.origin}/api/catalog`;
     console.log('[checkout] href:', location.href, 'pathname:', location.pathname, 'BASE:', BASE, 'fetch:', PRODUCTS_URL);
 
     try {
