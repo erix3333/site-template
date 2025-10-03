@@ -49,7 +49,7 @@
       <button class="btn" id="btnValidate">Validate</button>
       <button class="btn primary" id="btnSave">Save</button>
       <button class="btn" id="btnExport">Export JSON</button>
-      <span class="tag" title="Source file">products.json</span>
+      <span class="tag">products.json</span>
     </div>
     <div id="status" class="admin-status" aria-live="polite"></div>
 
@@ -68,22 +68,19 @@
             <th style="width:1%">×</th>
           </tr>
         </thead>
-        <tbody id="tbody">
-          <!-- rows injected -->
-        </tbody>
+        <tbody id="tbody"></tbody>
       </table>
     </div>
   </main>
 
   <script>
-    // ===== helpers =====
     const $ = (s, el=document)=> el.querySelector(s);
     const $$ = (s, el=document)=> Array.from(el.querySelectorAll(s));
     const STATUS = $('#status');
     const TBODY = $('#tbody');
-    const PRODUCTS_URL = `${location.origin}/products.json`; // absolute root path
+    const PRODUCTS_URL = '/products.json';
 
-    let rows = []; // array of product objects in UI
+    let rows = [];
 
     function setStatus(msg, isError=false){
       STATUS.textContent = msg || '';
@@ -99,12 +96,16 @@
       a.remove();
     }
 
-    // ===== render table =====
+    function escapeHtml(s){
+      return String(s||'').replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+
     function render(){
       TBODY.innerHTML = '';
       rows.forEach((p, idx)=>{
         const tr = document.createElement('tr');
-
         tr.innerHTML = `
           <td><input value="${escapeHtml(p.id||'')}" data-k="id"></td>
           <td><input value="${escapeHtml(p.title||'')}" data-k="title"></td>
@@ -116,61 +117,39 @@
           <td><input value="${escapeHtml(p.stripePrice||'')}" data-k="stripePrice" placeholder="price_... (optional)"></td>
           <td><button class="btn" data-del="${idx}">Del</button></td>
         `;
-
-        // wire inputs
         $$('input,textarea', tr).forEach(inp=>{
           inp.addEventListener('input', ()=>{
-            const key = inp.dataset.k;
-            let val = inp.value;
-            if (key === 'price') val = Number(val || 0);
-            rows[idx][key] = val;
+            const k = inp.dataset.k;
+            rows[idx][k] = (k === 'price') ? Number(inp.value || 0) : inp.value;
           });
         });
-
-        // delete
         $('[data-del]', tr).addEventListener('click', ()=>{
-          rows.splice(idx, 1);
+          rows.splice(idx,1);
           render();
         });
-
         TBODY.appendChild(tr);
       });
-
-      // always keep one empty row ready
-      if (!rows.length || !rows[rows.length-1]?.id){
-        rows.push({ id:'', title:'', price:0, image:'', category:'', excerpt:'', description:'', stripePrice:'' });
-        render(); // re-render once to show the extra row
-      }
     }
 
-    function escapeHtml(s){
-      return String(s||'').replace(/[&<>"']/g, c => ({
-        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-      }[c]));
-    }
-
-    // ===== load current products.json =====
     async function doLoad(){
       setStatus('Loading catalog…');
       try{
         const r = await fetch(PRODUCTS_URL, { cache:'no-cache' });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        rows = await r.json();
-        if (!Array.isArray(rows)) rows = [];
-        setStatus(`Loaded ${rows.length} items.`);
+        const data = await r.json();
+        if (!Array.isArray(data)) throw new Error('Invalid JSON format (expected array).');
+        rows = data;
         render();
+        setStatus(`Loaded ${rows.length} item(s).`);
       }catch(err){
-        setStatus('Load failed: ' + err.message, true);
-        rows = [{ id:'', title:'', price:0 }];
+        rows = [];
         render();
+        setStatus('Load failed: ' + err.message + ' — Make sure products.json exists at the project root and is deployed.', true);
       }
     }
 
-    // ===== validate =====
     function validate(){
-      // clear error styles
       $$('input,textarea', TBODY).forEach(el => el.classList.remove('bad'));
-
       const ids = new Set();
       let ok = true;
 
@@ -183,44 +162,29 @@
         const priceEl = $('[data-k="price"]', tr);
         const stripeEl = $('[data-k="stripePrice"]', tr);
 
-        // skip entirely empty trailing row
-        const isEmpty = !p.id && !p.title && !p.price && !p.image && !p.category && !p.excerpt && !p.description && !p.stripePrice;
-        if (isEmpty) return;
-
-        // id
-        if (!p.id || /\s/.test(p.id)){
-          ok = false; idEl.classList.add('bad');
-        }
-        if (ids.has(p.id)){
-          ok = false; idEl.classList.add('bad');
-        }
+        if (!p.id || /\s/.test(p.id) || ids.has(p.id)){ ok=false; idEl.classList.add('bad'); }
         ids.add(p.id);
 
-        // title
-        if (!p.title){ ok = false; titleEl.classList.add('bad'); }
+        if (!p.title){ ok=false; titleEl.classList.add('bad'); }
 
-        // price
         if (!(typeof p.price === 'number' && isFinite(p.price) && p.price >= 0)){
-          ok = false; priceEl.classList.add('bad');
+          ok=false; priceEl.classList.add('bad');
         }
 
-        // stripePrice (optional but if present, basic check)
         if (p.stripePrice && !/^price_/.test(p.stripePrice)){
-          ok = false; stripeEl.classList.add('bad');
+          ok=false; stripeEl.classList.add('bad');
         }
       });
 
-      setStatus(ok ? 'Validation passed.' : 'Validation failed — please fix highlighted fields.', !ok);
+      setStatus(ok ? 'Validation passed.' : 'Validation failed — fix highlighted fields.', !ok);
       return ok;
     }
 
-    // ===== save =====
     async function doSave(){
-      // build clean array (drop last empty row)
-      const clean = rows.filter(p => p && p.id && p.title).map(p => ({
-        id: String(p.id).trim(),
-        title: String(p.title).trim(),
-        price: Number(p.price || 0),
+      const clean = rows.map(p => ({
+        id: String(p.id||'').trim(),
+        title: String(p.title||'').trim(),
+        price: Number(p.price||0),
         currency: 'EUR',
         image: String(p.image||'').trim(),
         category: String(p.category||'').trim(),
@@ -231,53 +195,39 @@
 
       setStatus('Saving…');
 
-      // Try API first (if you’ve created /api/admin/save-catalog)
+      // Try API (if you later add /api/admin/save-catalog)
       try{
         const r = await fetch('/api/admin/save-catalog', {
           method:'POST',
           headers:{ 'Content-Type':'application/json' },
           body: JSON.stringify({ products: clean })
         });
-        if (r.ok){
-          setStatus('Saved via API.');
-          return;
-        }
-        // If the API exists but returned error, surface it
+        if (r.ok){ setStatus('Saved via API.'); return; }
         const j = await r.json().catch(()=> ({}));
         throw new Error(j?.error || `HTTP ${r.status}`);
-      }catch(err){
-        // Fallback: download products.json so user can upload/commit manually
+      }catch(_){
+        // Fallback → download file; you must upload/commit it to repo root
         download('products.json', JSON.stringify(clean, null, 2));
-        setStatus('API not available. Downloaded products.json — upload/commit it to the project root to apply changes.', true);
+        setStatus('Downloaded products.json — upload/commit it to the project root to apply changes.', true);
       }
     }
 
-    // ===== export (always download) =====
     function doExport(){
-      const clean = rows.filter(p => p && (p.id || p.title || p.price));
-      download('products-export.json', JSON.stringify(clean, null, 2));
+      download('products-export.json', JSON.stringify(rows, null, 2));
       setStatus('Exported JSON downloaded.');
     }
 
-    // ===== events =====
+    // events
     $('#btnLoad').addEventListener('click', doLoad);
     $('#btnAdd').addEventListener('click', ()=>{
       rows.push({ id:'', title:'', price:0, image:'', category:'', excerpt:'', description:'', stripePrice:'' });
       render();
     });
     $('#btnValidate').addEventListener('click', validate);
-    $('#btnSave').addEventListener('click', ()=>{
-      if (validate()) doSave();
-    });
+    $('#btnSave').addEventListener('click', ()=>{ if (validate()) doSave(); });
     $('#btnExport').addEventListener('click', doExport);
 
-    // bootstrap
-    (function initBrand(){
-      const brandName = $('#brandName'); if (brandName) brandName.textContent = 'Shop Name';
-      const brandLogo = $('#brandLogo'); if (brandLogo) brandLogo.src = '../images/logo.png';
-    })();
-
-    // auto-load on open
+    // init
     doLoad();
   </script>
 </body>
