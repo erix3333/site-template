@@ -1,12 +1,14 @@
 {
   "name": "site-template",
-  "private": true,
   "version": "1.0.0",
+  "type": "module",
   "scripts": {
     "dev": "vercel dev",
+    "build": "echo \"No build step\"",
     "start": "vercel dev"
   },
   "dependencies": {
-    "stripe": "^14.25.0"
+    "@vercel/blob": "^0.24.0",
+    "stripe": "^14.23.0"
   }
 }
