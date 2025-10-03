@@ -1,80 +1,94 @@
 // /api/catalog.js
-import { put, list, del } from '@vercel/blob';
+import { list, put, del } from '@vercel/blob';
+import fs from 'fs';
+import path from 'path';
 
-const FILE_NAME = 'products.json';           // we’ll store one canonical JSON file
-const PUBLIC_CACHE_SECONDS = 30;             // small cache for GETs
+const ADMIN_HEADER = 'x-admin-key';
 
-function bad(res, code, msg){ return res.status(code).json({ error: msg }); }
-function ok(res, data){ return res.status(200).json(data); }
-
-// Very light “auth” via header. Admin UI will send: Authorization: Bearer <ADMIN_KEY>
-function isAdmin(req){
-  const h = req.headers.authorization || '';
-  const token = h.startsWith('Bearer ') ? h.slice(7) : null;
-  return token && token === process.env.ADMIN_KEY;
+function ok(res, data, status = 200) {
+  res.status(status).json(data);
+}
+function err(res, message, status = 400) {
+  res.status(status).json({ error: message });
 }
 
-async function fetchCurrentJSON(){
-  // Find the blob named products.json (if any)
-  const { blobs } = await list({ prefix: FILE_NAME });
-  const existing = blobs.find(b => b.pathname === FILE_NAME);
-  if (!existing) return [];
-  const r = await fetch(existing.url, { cache: 'no-store' });
-  return await r.json();
+// fallback to repo file if blob not yet created
+function readRepoProducts() {
+  const fp = path.join(process.cwd(), 'products.json');
+  return JSON.parse(fs.readFileSync(fp, 'utf8'));
 }
 
-export default async function handler(req, res){
-  try{
-    if (req.method === 'GET'){
-      const data = await fetchCurrentJSON();
-      // small cache control for the CDN edge
-      res.setHeader('Cache-Control', `public, max-age=${PUBLIC_CACHE_SECONDS}`);
-      return ok(res, data);
+export default async function handler(req, res) {
+  try {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const pathname = url.pathname;
+
+    // ----- GET /api/catalog (read) -----
+    if (req.method === 'GET' && pathname.endsWith('/api/catalog')) {
+      // try blob first
+      const { blobs } = await list({ prefix: 'catalog/products.json' });
+      if (blobs && blobs.length) {
+        // pick the most recent
+        blobs.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+        const latest = blobs[0];
+        const data = await fetch(latest.url, { cache: 'no-store' }).then(r => r.json());
+        return ok(res, data);
+      }
+      // fallback to repo
+      return ok(res, readRepoProducts());
     }
 
-    // All mutations require admin
-    if (!isAdmin(req)) return bad(res, 401, 'Unauthorized');
-
-    // Parse body once
-    const body = req.body && typeof req.body === 'object' ? req.body
-               : req.body ? JSON.parse(req.body) : null;
-
-    if (req.method === 'PUT'){
-      // Replace entire catalog with provided array
-      if (!Array.isArray(body)) return bad(res, 400, 'Body must be a JSON array.');
-      const uploaded = await put(FILE_NAME, JSON.stringify(body, null, 2), {
-        access: 'public', contentType: 'application/json; charset=utf-8',
+    // ----- PUT /api/catalog (write) -----
+    if (req.method === 'PUT' && pathname.endsWith('/api/catalog')) {
+      const adminKey = req.headers[ADMIN_HEADER] || req.headers[ADMIN_HEADER.toLowerCase()];
+      if (!adminKey || adminKey !== process.env.ADMIN_KEY) {
+        return err(res, 'Unauthorized', 401);
+      }
+      const body = await readJSON(req);
+      if (!Array.isArray(body)) return err(res, 'Expected an array of products.');
+      // basic sanity validation
+      for (const p of body) {
+        if (!p.id || !p.title || typeof p.price !== 'number') {
+          return err(res, 'Each product needs id, title, price (number).');
+        }
+      }
+      const { url: blobUrl } = await put('catalog/products.json', JSON.stringify(body, null, 2), {
+        access: 'public',
+        addRandomSuffix: false,
+        contentType: 'application/json',
       });
-      return ok(res, { ok: true, url: uploaded.url, count: body.length });
+      return ok(res, { ok: true, url: blobUrl });
     }
 
-    if (req.method === 'PATCH'){
-      // Upsert a single product (by id). Body: { id, ...fields }
-      if (!body || !body.id) return bad(res, 400, 'Missing product id.');
-      const data = await fetchCurrentJSON();
-      const i = data.findIndex(p => String(p.id) === String(body.id));
-      if (i === -1) data.push(body); else data[i] = { ...data[i], ...body };
-      const uploaded = await put(FILE_NAME, JSON.stringify(data, null, 2), {
-        access: 'public', contentType: 'application/json; charset=utf-8',
-      });
-      return ok(res, { ok:true, url: uploaded.url, count: data.length });
+    // ----- GET /api/catalog/list (optional) -----
+    if (req.method === 'GET' && pathname.endsWith('/api/catalog/list')) {
+      const { blobs } = await list({ prefix: 'catalog/products.json' });
+      return ok(res, { blobs });
     }
 
-    if (req.method === 'DELETE'){
-      // Delete by id: ?id=p-001
-      const id = req.query?.id;
-      if (!id) return bad(res, 400, 'Missing id query param.');
-      const data = await fetchCurrentJSON();
-      const filtered = data.filter(p => String(p.id) !== String(id));
-      const uploaded = await put(FILE_NAME, JSON.stringify(filtered, null, 2), {
-        access: 'public', contentType: 'application/json; charset=utf-8',
-      });
-      return ok(res, { ok:true, url: uploaded.url, count: filtered.length });
+    // ----- DELETE /api/catalog/del?id=... (optional) -----
+    if (req.method === 'DELETE' && pathname.endsWith('/api/catalog/del')) {
+      const adminKey = req.headers[ADMIN_HEADER] || req.headers[ADMIN_HEADER.toLowerCase()];
+      if (!adminKey || adminKey !== process.env.ADMIN_KEY) {
+        return err(res, 'Unauthorized', 401);
+      }
+      const id = url.searchParams.get('id');
+      if (!id) return err(res, 'Missing id query param.');
+      await del(id);
+      return ok(res, { ok: true });
     }
 
-    return bad(res, 405, 'Method not allowed');
-  } catch (err){
-    console.error(err);
-    return bad(res, 500, err.message || 'Server error');
+    res.setHeader('Allow', 'GET,PUT,DELETE');
+    return err(res, 'Not found', 404);
+  } catch (e) {
+    console.error(e);
+    return err(res, e.message || 'Internal error', 500);
   }
+}
+
+async function readJSON(req) {
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  const buf = Buffer.concat(chunks).toString('utf8');
+  return JSON.parse(buf || 'null');
 }
