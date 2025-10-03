@@ -2,166 +2,283 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Admin — Catalog</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Catalog Admin — Shop Name</title>
   <link rel="stylesheet" href="../styles.css" />
   <style>
-    .admin-wrap{ max-width: 1200px; margin: 24px auto; padding: 0 12px; }
-    .toolbar{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px }
-    table{ width:100%; border-collapse: collapse; border:1px solid var(--line); }
-    th, td{ border-top:1px solid var(--line); padding:8px; vertical-align: top; }
-    th{ text-align:left; background:#fafafa }
-    input[type="text"], input[type="number"]{ width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:10px; }
-    .ok{ color: #0a0 }
-    .bad{ color: #a00 }
-    .muted.small{ font-size:12px }
-    .footer{ margin-top:16px; display:flex; justify-content:space-between; align-items:center; }
+    .admin-wrap{ padding:22px 0 }
+    .admin-bar{ display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap }
+    .admin-status{ min-height:20px; color:var(--muted) }
+    .admin-table{ width:100%; border-collapse:collapse; }
+    .admin-table th, .admin-table td{ border:1px solid var(--line); padding:8px; vertical-align:top }
+    .admin-table th{ text-align:left; background:#fafafa }
+    .admin-table input, .admin-table textarea{
+      width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:10px;
+      font: inherit; background:#fff;
+    }
+    .admin-table textarea{ min-height:44px; resize:vertical }
+    .bad{ outline:2px solid #d00; }
+    .note{ font-size:12px; color:var(--muted) }
+    .tag{ display:inline-block; font-size:12px; padding:2px 8px; border:1px solid var(--line); border-radius:999px; }
   </style>
 </head>
 <body>
-  <header class="site-header">
+  <a href="#main" class="skip-link">Skip to content</a>
+
+  <header class="site-header" aria-label="Header">
     <div class="wrap header-inner">
-      <a class="brand" href="../index.html"><img id="brandLogo" src="../images/logo.png" alt="" /><span id="brandName">Shop Name</span></a>
+      <a class="brand" href="../index.html" aria-label="Back to store">
+        <img id="brandLogo" src="../images/logo.png" alt="Store logo" />
+        <span id="brandName">Shop Name</span>
+      </a>
       <div class="toolbar">
-        <a class="btn" href="../index.html#products">Back to store</a>
+        <a href="../index.html#products" class="btn">Back to store</a>
       </div>
     </div>
   </header>
 
-  <main class="admin-wrap">
+  <main class="wrap admin-wrap" id="main">
     <h1>Catalog Admin</h1>
-    <p class="muted">Load current catalog, edit rows, then <b>Validate</b> and <b>Save</b>.</p>
+    <p class="note">
+      Load current catalog, edit rows, then <b>Validate</b> and <b>Save</b>.
+    </p>
 
-    <div class="toolbar">
-      <button class="btn" id="loadBtn">Load</button>
-      <button class="btn" id="addBtn">Add row</button>
-      <button class="btn" id="validateBtn">Validate</button>
-      <button class="btn primary" id="saveBtn">Save</button>
-      <button class="btn" id="exportBtn">Export JSON</button>
+    <div class="admin-bar" role="group" aria-label="Admin actions">
+      <button class="btn" id="btnLoad">Load</button>
+      <button class="btn" id="btnAdd">Add row</button>
+      <button class="btn" id="btnValidate">Validate</button>
+      <button class="btn primary" id="btnSave">Save</button>
+      <button class="btn" id="btnExport">Export JSON</button>
+      <span class="tag" title="Source file">products.json</span>
     </div>
+    <div id="status" class="admin-status" aria-live="polite"></div>
 
-    <table id="grid">
-      <thead>
-        <tr>
-          <th style="width:130px">id</th>
-          <th>title</th>
-          <th style="width:110px">price (EUR)</th>
-          <th>image URL</th>
-          <th>category</th>
-          <th>excerpt</th>
-          <th>description</th>
-          <th style="width:140px">stripePrice (opt.)</th>
-          <th style="width:40px">×</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-
-    <div class="footer">
-      <div id="status" class="muted small">Idle.</div>
+    <div style="overflow:auto; margin-top:8px">
+      <table class="admin-table" id="tbl">
+        <thead>
+          <tr>
+            <th style="min-width:140px">id</th>
+            <th style="min-width:200px">title</th>
+            <th style="min-width:120px">price (EUR)</th>
+            <th style="min-width:220px">image URL</th>
+            <th style="min-width:160px">category</th>
+            <th style="min-width:220px">excerpt</th>
+            <th style="min-width:260px">description</th>
+            <th style="min-width:160px">stripePrice<br><span class="note">(opt.)</span></th>
+            <th style="width:1%">×</th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <!-- rows injected -->
+        </tbody>
+      </table>
     </div>
   </main>
 
   <script>
-    const $ = (s,el=document)=>el.querySelector(s);
-    const $$ = (s,el=document)=>Array.from(el.querySelectorAll(s));
+    // ===== helpers =====
+    const $ = (s, el=document)=> el.querySelector(s);
+    const $$ = (s, el=document)=> Array.from(el.querySelectorAll(s));
+    const STATUS = $('#status');
+    const TBODY = $('#tbody');
+    const PRODUCTS_URL = `${location.origin}/products.json`; // absolute root path
 
-    const tbody = $('#grid tbody');
-    const statusEl = $('#status');
+    let rows = []; // array of product objects in UI
 
-    function setStatus(msg, good=false){
-      statusEl.textContent = msg;
-      statusEl.className = 'muted small ' + (good ? 'ok' : '');
+    function setStatus(msg, isError=false){
+      STATUS.textContent = msg || '';
+      STATUS.style.color = isError ? '#c00' : 'var(--muted)';
     }
 
-    function addRow(p = { id:'', title:'', price:0, image:'', category:'', excerpt:'', description:'', stripePrice:'' }){
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><input type="text" name="id" value="${escapeHtml(p.id||'')}" /></td>
-        <td><input type="text" name="title" value="${escapeHtml(p.title||'')}" /></td>
-        <td><input type="number" step="0.01" name="price" value="${Number(p.price||0)}" /></td>
-        <td><input type="text" name="image" value="${escapeHtml(p.image||'')}" /></td>
-        <td><input type="text" name="category" value="${escapeHtml(p.category||'')}" /></td>
-        <td><input type="text" name="excerpt" value="${escapeHtml(p.excerpt||'')}" /></td>
-        <td><input type="text" name="description" value="${escapeHtml(p.description||'')}" /></td>
-        <td><input type="text" name="stripePrice" value="${escapeHtml(p.stripePrice||'')}" /></td>
-        <td><button class="btn" data-del>Del</button></td>
-      `;
-      tr.querySelector('[data-del]').addEventListener('click', ()=> tr.remove());
-      tbody.appendChild(tr);
-    }
-
-    function getData(){
-      return $$('#grid tbody tr').map(tr=>{
-        const o = {};
-        $$('input', tr).forEach(inp => o[inp.name] = inp.type==='number' ? Number(inp.value||0) : (inp.value||''));
-        return o;
-      });
-    }
-
-    function validate(list){
-      for (const p of list){
-        if (!p.id || !p.title) return { ok:false, msg:'Each row needs id and title.' };
-        if (typeof p.price !== 'number' || isNaN(p.price)) return { ok:false, msg:`Invalid price for ${p.id}` };
-      }
-      return { ok:true, msg: `Looks good. ${list.length} product(s).` };
-    }
-
-    function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]) ); }
-
-    // ---- Buttons ----
-    $('#loadBtn').addEventListener('click', async ()=>{
-      setStatus('Loading…');
-      try{
-        const r = await fetch('/api/catalog', { cache:'no-store' });
-        if (!r.ok) throw new Error(r.status);
-        const data = await r.json();
-        tbody.innerHTML = '';
-        (data||[]).forEach(addRow);
-        setStatus('Loaded.', true);
-      }catch(e){ setStatus('Load failed: ' + e.message); }
-    });
-
-    $('#addBtn').addEventListener('click', ()=> addRow());
-
-    $('#validateBtn').addEventListener('click', ()=>{
-      const check = validate(getData());
-      setStatus(check.msg, check.ok);
-      if (!check.ok) alert(check.msg);
-    });
-
-    $('#saveBtn').addEventListener('click', async ()=>{
-      const list = getData();
-      const check = validate(list);
-      if (!check.ok){ alert(check.msg); return; }
-      const key = prompt('Enter ADMIN_KEY to save:');
-      if (!key){ alert('Canceled'); return; }
-      setStatus('Saving…');
-      try{
-        const r = await fetch('/api/catalog', {
-          method:'PUT',
-          headers: { 'Content-Type':'application/json', 'x-admin-key': key },
-          body: JSON.stringify(list)
-        });
-        const j = await r.json();
-        if (!r.ok) throw new Error(j.error || r.status);
-        setStatus('Saved to Blob storage.', true);
-        alert('Saved successfully.');
-      }catch(e){ setStatus('Save failed: ' + e.message); }
-    });
-
-    $('#exportBtn').addEventListener('click', ()=>{
-      const data = JSON.stringify(getData(), null, 2);
-      const blob = new Blob([data], {type:'application/json'});
+    function download(filename, text){
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'products.json';
+      a.href = URL.createObjectURL(new Blob([text], {type:'application/json'}));
+      a.download = filename;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(a.href);
-    });
+      a.remove();
+    }
 
-    // Auto-load on open
-    document.addEventListener('DOMContentLoaded', ()=> $('#loadBtn').click());
+    // ===== render table =====
+    function render(){
+      TBODY.innerHTML = '';
+      rows.forEach((p, idx)=>{
+        const tr = document.createElement('tr');
+
+        tr.innerHTML = `
+          <td><input value="${escapeHtml(p.id||'')}" data-k="id"></td>
+          <td><input value="${escapeHtml(p.title||'')}" data-k="title"></td>
+          <td><input value="${Number(p.price||0)}" type="number" step="0.01" min="0" data-k="price"></td>
+          <td><input value="${escapeHtml(p.image||'')}" data-k="image"></td>
+          <td><input value="${escapeHtml(p.category||'')}" data-k="category"></td>
+          <td><textarea data-k="excerpt">${escapeHtml(p.excerpt||'')}</textarea></td>
+          <td><textarea data-k="description">${escapeHtml(p.description||'')}</textarea></td>
+          <td><input value="${escapeHtml(p.stripePrice||'')}" data-k="stripePrice" placeholder="price_... (optional)"></td>
+          <td><button class="btn" data-del="${idx}">Del</button></td>
+        `;
+
+        // wire inputs
+        $$('input,textarea', tr).forEach(inp=>{
+          inp.addEventListener('input', ()=>{
+            const key = inp.dataset.k;
+            let val = inp.value;
+            if (key === 'price') val = Number(val || 0);
+            rows[idx][key] = val;
+          });
+        });
+
+        // delete
+        $('[data-del]', tr).addEventListener('click', ()=>{
+          rows.splice(idx, 1);
+          render();
+        });
+
+        TBODY.appendChild(tr);
+      });
+
+      // always keep one empty row ready
+      if (!rows.length || !rows[rows.length-1]?.id){
+        rows.push({ id:'', title:'', price:0, image:'', category:'', excerpt:'', description:'', stripePrice:'' });
+        render(); // re-render once to show the extra row
+      }
+    }
+
+    function escapeHtml(s){
+      return String(s||'').replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+
+    // ===== load current products.json =====
+    async function doLoad(){
+      setStatus('Loading catalog…');
+      try{
+        const r = await fetch(PRODUCTS_URL, { cache:'no-cache' });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        rows = await r.json();
+        if (!Array.isArray(rows)) rows = [];
+        setStatus(`Loaded ${rows.length} items.`);
+        render();
+      }catch(err){
+        setStatus('Load failed: ' + err.message, true);
+        rows = [{ id:'', title:'', price:0 }];
+        render();
+      }
+    }
+
+    // ===== validate =====
+    function validate(){
+      // clear error styles
+      $$('input,textarea', TBODY).forEach(el => el.classList.remove('bad'));
+
+      const ids = new Set();
+      let ok = true;
+
+      rows.forEach((p, i)=>{
+        const tr = TBODY.children[i];
+        if (!tr) return;
+
+        const idEl = $('[data-k="id"]', tr);
+        const titleEl = $('[data-k="title"]', tr);
+        const priceEl = $('[data-k="price"]', tr);
+        const stripeEl = $('[data-k="stripePrice"]', tr);
+
+        // skip entirely empty trailing row
+        const isEmpty = !p.id && !p.title && !p.price && !p.image && !p.category && !p.excerpt && !p.description && !p.stripePrice;
+        if (isEmpty) return;
+
+        // id
+        if (!p.id || /\s/.test(p.id)){
+          ok = false; idEl.classList.add('bad');
+        }
+        if (ids.has(p.id)){
+          ok = false; idEl.classList.add('bad');
+        }
+        ids.add(p.id);
+
+        // title
+        if (!p.title){ ok = false; titleEl.classList.add('bad'); }
+
+        // price
+        if (!(typeof p.price === 'number' && isFinite(p.price) && p.price >= 0)){
+          ok = false; priceEl.classList.add('bad');
+        }
+
+        // stripePrice (optional but if present, basic check)
+        if (p.stripePrice && !/^price_/.test(p.stripePrice)){
+          ok = false; stripeEl.classList.add('bad');
+        }
+      });
+
+      setStatus(ok ? 'Validation passed.' : 'Validation failed — please fix highlighted fields.', !ok);
+      return ok;
+    }
+
+    // ===== save =====
+    async function doSave(){
+      // build clean array (drop last empty row)
+      const clean = rows.filter(p => p && p.id && p.title).map(p => ({
+        id: String(p.id).trim(),
+        title: String(p.title).trim(),
+        price: Number(p.price || 0),
+        currency: 'EUR',
+        image: String(p.image||'').trim(),
+        category: String(p.category||'').trim(),
+        excerpt: String(p.excerpt||'').trim(),
+        description: String(p.description||'').trim(),
+        stripePrice: String(p.stripePrice||'').trim()
+      }));
+
+      setStatus('Saving…');
+
+      // Try API first (if you’ve created /api/admin/save-catalog)
+      try{
+        const r = await fetch('/api/admin/save-catalog', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify({ products: clean })
+        });
+        if (r.ok){
+          setStatus('Saved via API.');
+          return;
+        }
+        // If the API exists but returned error, surface it
+        const j = await r.json().catch(()=> ({}));
+        throw new Error(j?.error || `HTTP ${r.status}`);
+      }catch(err){
+        // Fallback: download products.json so user can upload/commit manually
+        download('products.json', JSON.stringify(clean, null, 2));
+        setStatus('API not available. Downloaded products.json — upload/commit it to the project root to apply changes.', true);
+      }
+    }
+
+    // ===== export (always download) =====
+    function doExport(){
+      const clean = rows.filter(p => p && (p.id || p.title || p.price));
+      download('products-export.json', JSON.stringify(clean, null, 2));
+      setStatus('Exported JSON downloaded.');
+    }
+
+    // ===== events =====
+    $('#btnLoad').addEventListener('click', doLoad);
+    $('#btnAdd').addEventListener('click', ()=>{
+      rows.push({ id:'', title:'', price:0, image:'', category:'', excerpt:'', description:'', stripePrice:'' });
+      render();
+    });
+    $('#btnValidate').addEventListener('click', validate);
+    $('#btnSave').addEventListener('click', ()=>{
+      if (validate()) doSave();
+    });
+    $('#btnExport').addEventListener('click', doExport);
+
+    // bootstrap
+    (function initBrand(){
+      const brandName = $('#brandName'); if (brandName) brandName.textContent = 'Shop Name';
+      const brandLogo = $('#brandLogo'); if (brandLogo) brandLogo.src = '../images/logo.png';
+    })();
+
+    // auto-load on open
+    doLoad();
   </script>
 </body>
 </html>
