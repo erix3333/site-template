@@ -74,14 +74,16 @@
   </main>
 
   <script>
-    // --- CONFIG: set this to the SAME secret as your Vercel env var ADMIN_TOKEN ---
-    const ADMIN_TOKEN = 'YOUR_SAME_SECRET'; // <-- replace this
+    // ===== CONFIG =====
+    const PRODUCTS_URL = '/products.json'; // absolute root path
+    const ADMIN_API_SAVE = '/api/admin/save-catalog';
+    const ADMIN_TOKEN = 'YOUR_SAME_SECRET'; // <-- replace in BOTH admin.html and the API
 
+    // ===== UTILS =====
     const $ = (s, el=document)=> el.querySelector(s);
     const $$ = (s, el=document)=> Array.from(el.querySelectorAll(s));
     const STATUS = $('#status');
     const TBODY = $('#tbody');
-    const PRODUCTS_URL = '/products.json';
 
     let rows = [];
 
@@ -105,6 +107,7 @@
       }[c]));
     }
 
+    // ===== RENDER TABLE =====
     function render(){
       TBODY.innerHTML = '';
       rows.forEach((p, idx)=>{
@@ -134,6 +137,7 @@
       });
     }
 
+    // ===== LOAD =====
     async function doLoad(){
       setStatus('Loading catalog…');
       try{
@@ -151,6 +155,7 @@
       }
     }
 
+    // ===== VALIDATE =====
     function validate(){
       $$('input,textarea', TBODY).forEach(el => el.classList.remove('bad'));
       const ids = new Set();
@@ -183,6 +188,7 @@
       return ok;
     }
 
+    // ===== SAVE =====
     async function doSave(){
       const clean = rows.map(p => ({
         id: String(p.id||'').trim(),
@@ -198,13 +204,13 @@
 
       setStatus('Saving…');
 
-      // Try API first (writes to products.json on the server)
+      // Try API (if your /api/admin/save-catalog exists & checks x-admin-token)
       try{
-        const r = await fetch('/api/admin/save-catalog', {
+        const r = await fetch(ADMIN_API_SAVE, {
           method:'POST',
           headers:{
             'Content-Type':'application/json',
-            'x-admin-token': ADMIN_TOKEN   // <<< added auth header
+            'x-admin-token': ADMIN_TOKEN
           },
           body: JSON.stringify({ products: clean })
         });
@@ -215,18 +221,19 @@
         const j = await r.json().catch(()=> ({}));
         throw new Error(j?.error || `HTTP ${r.status}`);
       }catch(_){
-        // Fallback → download file; then you commit it to the repo root
+        // Fallback → download file; you must upload/commit it to repo root
         download('products.json', JSON.stringify(clean, null, 2));
         setStatus('Downloaded products.json — upload/commit it to the project root to apply changes.', true);
       }
     }
 
+    // ===== EXPORT =====
     function doExport(){
       download('products-export.json', JSON.stringify(rows, null, 2));
       setStatus('Exported JSON downloaded.');
     }
 
-    // events
+    // ===== EVENTS =====
     $('#btnLoad').addEventListener('click', doLoad);
     $('#btnAdd').addEventListener('click', ()=>{
       rows.push({ id:'', title:'', price:0, image:'', category:'', excerpt:'', description:'', stripePrice:'' });
@@ -236,9 +243,8 @@
     $('#btnSave').addEventListener('click', ()=>{ if (validate()) doSave(); });
     $('#btnExport').addEventListener('click', doExport);
 
-    // init
+    // ===== INIT =====
     doLoad();
   </script>
 </body>
 </html>
-`
