@@ -74,6 +74,9 @@
   </main>
 
   <script>
+    // --- CONFIG: set this to the SAME secret as your Vercel env var ADMIN_TOKEN ---
+    const ADMIN_TOKEN = 'YOUR_SAME_SECRET'; // <-- replace this
+
     const $ = (s, el=document)=> el.querySelector(s);
     const $$ = (s, el=document)=> Array.from(el.querySelectorAll(s));
     const STATUS = $('#status');
@@ -195,18 +198,24 @@
 
       setStatus('Saving…');
 
-      // Try API (if you later add /api/admin/save-catalog)
+      // Try API first (writes to products.json on the server)
       try{
         const r = await fetch('/api/admin/save-catalog', {
           method:'POST',
-          headers:{ 'Content-Type':'application/json' },
+          headers:{
+            'Content-Type':'application/json',
+            'x-admin-token': ADMIN_TOKEN   // <<< added auth header
+          },
           body: JSON.stringify({ products: clean })
         });
-        if (r.ok){ setStatus('Saved via API.'); return; }
+        if (r.ok){
+          setStatus('Saved via API.');
+          return;
+        }
         const j = await r.json().catch(()=> ({}));
         throw new Error(j?.error || `HTTP ${r.status}`);
       }catch(_){
-        // Fallback → download file; you must upload/commit it to repo root
+        // Fallback → download file; then you commit it to the repo root
         download('products.json', JSON.stringify(clean, null, 2));
         setStatus('Downloaded products.json — upload/commit it to the project root to apply changes.', true);
       }
@@ -232,3 +241,4 @@
   </script>
 </body>
 </html>
+`
