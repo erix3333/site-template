@@ -4,7 +4,7 @@ const BASE = IS_SUBPAGE ? '..' : '.';
 
 // --- Config ---
 // const PRODUCTS_URL = `${BASE}/products.json`;
-const PRODUCTS_URL = `${BASE}/api/catalog`; // ← new
+const PRODUCTS_URL = `${location.origin}/products.json`;
 
 // Site config (logo path & name)
 const SITE = {
