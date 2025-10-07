@@ -41,6 +41,7 @@
     <h1>Catalog Admin</h1>
     <p class="note">
       Load current catalog, edit rows, then <b>Validate</b> and <b>Save</b>.
+      To stay logged in, your admin token is stored locally (never sent to others).
     </p>
 
     <div class="admin-bar" role="group" aria-label="Admin actions">
@@ -51,7 +52,14 @@
       <button class="btn" id="btnExport">Export JSON</button>
       <span class="tag">products.json</span>
     </div>
-    <div id="status" class="admin-status" aria-live="polite"></div>
+    <div class="admin-status" id="status" aria-live="polite"></div>
+
+    <div style="margin:10px 0">
+      <label class="label" for="adminToken">Admin token</label>
+      <input id="adminToken" placeholder="Enter the same ADMIN_SECRET as in Vercel env" />
+      <button class="btn" id="btnRemember">Remember</button>
+      <span class="note">This stays in your browser only.</span>
+    </div>
 
     <div style="overflow:auto; margin-top:8px">
       <table class="admin-table" id="tbl">
@@ -74,16 +82,23 @@
   </main>
 
   <script>
-    // ===== CONFIG =====
-    const PRODUCTS_URL = '/products.json'; // absolute root path
-    const ADMIN_API_SAVE = '/api/admin/save-catalog';
-    const ADMIN_TOKEN = 'YOUR_SAME_SECRET'; // <-- replace in BOTH admin.html and the API
-
-    // ===== UTILS =====
     const $ = (s, el=document)=> el.querySelector(s);
     const $$ = (s, el=document)=> Array.from(el.querySelectorAll(s));
     const STATUS = $('#status');
     const TBODY = $('#tbody');
+
+    // Use API for load/save so it works everywhere
+    const LOAD_URL = `${location.origin}/api/catalog`;
+    const SAVE_URL = `${location.origin}/api/admin/save-catalog`;
+
+    // Token UX
+    const tokenInput = $('#adminToken');
+    const remembered = localStorage.getItem('ADMIN_TOKEN');
+    if (remembered) tokenInput.value = remembered;
+    $('#btnRemember').addEventListener('click', ()=>{
+      localStorage.setItem('ADMIN_TOKEN', tokenInput.value.trim());
+      setStatus('Token stored locally.');
+    });
 
     let rows = [];
 
@@ -107,7 +122,6 @@
       }[c]));
     }
 
-    // ===== RENDER TABLE =====
     function render(){
       TBODY.innerHTML = '';
       rows.forEach((p, idx)=>{
@@ -137,11 +151,10 @@
       });
     }
 
-    // ===== LOAD =====
     async function doLoad(){
       setStatus('Loading catalog…');
       try{
-        const r = await fetch(PRODUCTS_URL, { cache:'no-cache' });
+        const r = await fetch(LOAD_URL, { cache:'no-store' });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         const data = await r.json();
         if (!Array.isArray(data)) throw new Error('Invalid JSON format (expected array).');
@@ -151,11 +164,10 @@
       }catch(err){
         rows = [];
         render();
-        setStatus('Load failed: ' + err.message + ' — Make sure products.json exists at the project root and is deployed.', true);
+        setStatus('Load failed: ' + err.message + ' — make sure /api/catalog works.', true);
       }
     }
 
-    // ===== VALIDATE =====
     function validate(){
       $$('input,textarea', TBODY).forEach(el => el.classList.remove('bad'));
       const ids = new Set();
@@ -188,7 +200,6 @@
       return ok;
     }
 
-    // ===== SAVE =====
     async function doSave(){
       const clean = rows.map(p => ({
         id: String(p.id||'').trim(),
@@ -204,36 +215,38 @@
 
       setStatus('Saving…');
 
-      // Try API (if your /api/admin/save-catalog exists & checks x-admin-token)
+      const token = tokenInput.value.trim();
+      if (!token){ setStatus('Enter your admin token first.', true); return; }
+
+      // Primary: save via API (if configured with write permissions)
       try{
-        const r = await fetch(ADMIN_API_SAVE, {
+        const r = await fetch(SAVE_URL, {
           method:'POST',
           headers:{
             'Content-Type':'application/json',
-            'x-admin-token': ADMIN_TOKEN
+            'x-admin-token': token
           },
           body: JSON.stringify({ products: clean })
         });
         if (r.ok){
-          setStatus('Saved via API.');
+          setStatus('Saved via API. (If your project is read-only, it will still fall back to download.)');
           return;
         }
         const j = await r.json().catch(()=> ({}));
         throw new Error(j?.error || `HTTP ${r.status}`);
       }catch(_){
-        // Fallback → download file; you must upload/commit it to repo root
+        // Fallback → download file; then you manually upload/commit to repo root
         download('products.json', JSON.stringify(clean, null, 2));
         setStatus('Downloaded products.json — upload/commit it to the project root to apply changes.', true);
       }
     }
 
-    // ===== EXPORT =====
     function doExport(){
       download('products-export.json', JSON.stringify(rows, null, 2));
       setStatus('Exported JSON downloaded.');
     }
 
-    // ===== EVENTS =====
+    // events
     $('#btnLoad').addEventListener('click', doLoad);
     $('#btnAdd').addEventListener('click', ()=>{
       rows.push({ id:'', title:'', price:0, image:'', category:'', excerpt:'', description:'', stripePrice:'' });
@@ -243,7 +256,7 @@
     $('#btnSave').addEventListener('click', ()=>{ if (validate()) doSave(); });
     $('#btnExport').addEventListener('click', doExport);
 
-    // ===== INIT =====
+    // init
     doLoad();
   </script>
 </body>

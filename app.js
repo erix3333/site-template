@@ -3,8 +3,8 @@ const IS_SUBPAGE = /\/pages\//.test(location.pathname);
 const BASE = IS_SUBPAGE ? '..' : '.';
 
 // --- Config ---
-// const PRODUCTS_URL = `${BASE}/products.json`;
-const PRODUCTS_URL = `${location.origin}/products.json`;
+// Use the API so paths work everywhere (root + subpages + Vercel)
+const PRODUCTS_URL = `${location.origin}/api/catalog`;
 
 // Site config (logo path & name)
 const SITE = {
@@ -468,7 +468,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   renderProducts(PRODUCTS);
   updateCartCount();
 
-  // Search + filters + sort
   qs('#q')?.addEventListener('input', applyFilters);
   qs('#clearSearch')?.addEventListener('click', () => { const q = qs('#q'); if (q) { q.value = ''; applyFilters(); } });
   qs('#category')?.addEventListener('change', applyFilters);
