@@ -176,115 +176,132 @@
 
   <!-- shared helpers + money() -->
   <script src="../app.js"></script>
-  <script>
-    // ===== CONFIG (base amounts in EUR) =====
-    const EXPRESS_FEE_EUR = 9.9;
-    const COD_FEE_EUR = 2.5;
-    const STANDARD_FEE_EUR = 5.0;
-    const FREE_SHIP_THRESHOLD_EUR = 65;
+  <script src="../app.js"></script>
+<script>
+  // ===== CONFIG (base amounts in EUR) =====
+  const EXPRESS_FEE_EUR = 9.9;
+  const COD_FEE_EUR = 2.5;
+  const STANDARD_FEE_EUR = 5.0;
+  const FREE_SHIP_THRESHOLD_EUR = 65;
 
-    // ===== STATE =====
-    const cartMap = JSON.parse(localStorage.getItem('cart') || '{}');
-    if (!Object.keys(cartMap).length) location.href = '../index.html#products';
+  // ===== STATE =====
+  const cartObj = JSON.parse(localStorage.getItem('cart')||'{}');
+  if (!Object.keys(cartObj).length) location.href = '../index.html#products';
 
-    let subtotal = 0;
-    let discount = 0;
-    let shipping = 0;
-    let payMethod = 'card';
-    let shipMethod = 'standard';
+  let subtotal = 0;
+  let discount = 0;
+  let shipping = 0;
+  let payMethod = 'card';
+  let shipMethod = 'standard';
 
-    const $ = (s, el=document)=> el.querySelector(s);
-    const $$ = (s, el=document)=> Array.from(el.querySelectorAll(s));
+  const $ = (s, el=document)=> el.querySelector(s);
+  const $$ = (s, el=document)=> Array.from(el.querySelectorAll(s));
 
-    // ===== STEP WIZARD =====
-    let currentStep = 0;
-    const steps = $$('.ck-step');
-    const stepper = $$('.stepper .step');
+  // ===== STEP WIZARD =====
+  let currentStep = 0;
+  const steps = $$('.ck-step');
+  const stepper = $$('.stepper .step');
 
-    function showStep(i){
-      currentStep = Math.max(0, Math.min(steps.length-1, i));
-      steps.forEach((sec,idx)=> sec.hidden = idx !== currentStep);
-      stepper.forEach((el,idx)=>{
-        el.classList.toggle('current', idx === currentStep);
-        el.classList.toggle('done', idx < currentStep);
-      });
-      $('#main')?.scrollIntoView({behavior:'smooth', block:'start'});
-      renderReview();
-    }
-
-    function validateStep(i){
-      const sec = steps[i];
-      if (!sec) return true;
-      if (i === 0){
-        const required = $$('input[required]', sec);
-        for (const inp of required){
-          if (!inp.value.trim()) { inp.focus(); alert('Please complete your contact and address.'); return false; }
-        }
-      }
-      if (i === 2){
-        if (!$('#agree')?.checked){
-          alert('Please agree to the Privacy and Terms.');
-          return false;
-        }
-      }
-      return true;
-    }
-
-    $$('[data-next]').forEach(b=>{
-      b.addEventListener('click', ()=>{
-        if (!validateStep(currentStep)) return;
-        showStep(currentStep+1);
-      });
+  function showStep(i){
+    currentStep = Math.max(0, Math.min(steps.length-1, i));
+    steps.forEach((sec,idx)=> sec.hidden = idx !== currentStep);
+    stepper.forEach((el,idx)=>{
+      el.classList.toggle('current', idx === currentStep);
+      el.classList.toggle('done', idx < currentStep);
     });
-    $$('[data-back]').forEach(b=>{
-      b.addEventListener('click', ()=> showStep(currentStep-1));
+    $('#main')?.scrollIntoView({behavior:'smooth', block:'start'});
+    renderReview();
+  }
+
+  function validateStep(i){
+    const sec = steps[i];
+    if (!sec) return true;
+    if (i === 0){
+      const required = $$('input[required]', sec);
+      for (const inp of required){
+        if (!inp.value.trim()) { inp.focus(); alert('Please complete your contact and address.'); return false; }
+      }
+    }
+    if (i === 2){
+      if (!$('#agree')?.checked){
+        alert('Please agree to the Privacy and Terms.');
+        return false;
+      }
+    }
+    return true;
+  }
+
+  $$('[data-next]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      if (!validateStep(currentStep)) return;
+      showStep(currentStep+1);
     });
+  });
+  $$('[data-back]').forEach(b=>{
+    b.addEventListener('click', ()=> showStep(currentStep-1));
+  });
 
-    // ===== SUMMARY / PRICES =====
-    function syncPrices(){
-      const total = Math.max(0, subtotal - discount) + shipping;
-      $('#summarySubtotal').textContent = money(subtotal);
-      $('#summaryDiscount').textContent = discount ? ('− ' + money(discount)) : '—';
-      $('#summaryShipping').textContent = shipping ? money(shipping) : 'Free';
-      $('#summaryTotal').textContent = money(total);
+  // ===== SUMMARY / PRICES =====
+  function syncPrices(){
+    const total = Math.max(0, subtotal - discount) + shipping;
+    $('#summarySubtotal').textContent = money(subtotal);
+    $('#summaryDiscount').textContent = discount ? ('− ' + money(discount)) : '—';
+    $('#summaryShipping').textContent = shipping ? money(shipping) : 'Free';
+    $('#summaryTotal').textContent = money(total);
+  }
+
+  function setShippingBySelections(){
+    const base = (shipMethod === 'express')
+      ? EXPRESS_FEE_EUR
+      : (subtotal >= FREE_SHIP_THRESHOLD_EUR ? 0 : STANDARD_FEE_EUR);
+
+    const handling = (payMethod === 'cod') ? COD_FEE_EUR : 0;
+    shipping = base + handling;
+
+    $('#shipStandard').textContent = (subtotal >= FREE_SHIP_THRESHOLD_EUR) ? money(0) : money(STANDARD_FEE_EUR);
+    $('#shipExpress').textContent = money(EXPRESS_FEE_EUR);
+
+    syncPrices();
+  }
+
+  // ===== LOAD CART INTO SUMMARY (robust loader) =====
+  async function loadProductsRobust(){
+    // Try absolute root, then relative (covers any odd basepath behavior)
+    const candidates = [
+      `/products.json?v=${Date.now()}`,
+      `../products.json?v=${Date.now()}`
+    ];
+
+    let lastErr = null;
+    for (const url of candidates){
+      try{
+        const r = await fetch(url, { cache:'no-cache' });
+        if (!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText}`);
+        const data = await r.json();
+        if (!Array.isArray(data)) throw new Error('Invalid JSON format (expected array)');
+        return { products: data, used: url };
+      }catch(err){
+        lastErr = { url, err };
+        // try next
+      }
     }
+    throw new Error(`Failed loading products.json — Last attempt ${lastErr?.url}: ${lastErr?.err?.message || lastErr}`);
+  }
 
-    function setShippingBySelections(){
-      const base = (shipMethod === 'express')
-        ? EXPRESS_FEE_EUR
-        : (subtotal >= FREE_SHIP_THRESHOLD_EUR ? 0 : STANDARD_FEE_EUR);
-
-      const handling = (payMethod === 'cod') ? COD_FEE_EUR : 0;
-      shipping = base + handling;
-
-      $('#shipStandard').textContent = (subtotal >= FREE_SHIP_THRESHOLD_EUR) ? money(0) : money(STANDARD_FEE_EUR);
-      $('#shipExpress').textContent = money(EXPRESS_FEE_EUR);
-
-      syncPrices();
-    }
-
-    // ===== LOAD CART INTO SUMMARY =====
   (async () => {
-    // ✅ use BASE from app.js so it works at / and at /pages/
-    const PRODUCTS_URL = `${location.origin}/api/catalog`;
-    console.log('[checkout] href:', location.href, 'pathname:', location.pathname, 'BASE:', BASE, 'fetch:', PRODUCTS_URL);
+    try{
+      const { products: PRODUCTS, used } = await loadProductsRobust();
 
-    try {
-      const r = await fetch(PRODUCTS_URL, { cache: 'no-cache' });
-      if (!r.ok) throw new Error(`Failed to load ${PRODUCTS_URL}: ${r.status}`);
-      const PRODUCTS = await r.json();
-
-      const itemsWrap = document.getElementById('summaryItems');
+      const itemsWrap = $('#summaryItems');
       itemsWrap.innerHTML = '';
       subtotal = 0;
 
-      for (const id in cartMap) {
-        const p = PRODUCTS.find(x => String(x.id) === String(id));
-        if (!p) { console.warn('[checkout] product id not found in catalog:', id); continue; }
-
-        const qty = cartMap[id];
-        const sum = p.price * qty;
-        subtotal += sum;
+      for(const id in cartObj){
+        const p = PRODUCTS.find(x=>String(x.id)===String(id));
+        if(!p) continue;
+        const qty = cartObj[id];
+        const line = p.price * qty;
+        subtotal += line;
 
         const row = document.createElement('div');
         row.className = 'sum-item';
@@ -296,92 +313,95 @@
               <div class="muted tiny">${qty} × ${money(p.price)}</div>
             </div>
           </div>
-          <div class="si-right">${money(sum)}</div>`;
+          <div class="si-right">${money(line)}</div>`;
         itemsWrap.appendChild(row);
       }
 
       setShippingBySelections();
-    } catch (err) {
-      console.error('[checkout] products load error', err);
-      alert('Could not load products. Please refresh and try again.');
+      // Small debug breadcrumb (visible in DevTools only)
+      console.debug('[checkout] products.json loaded from:', used);
+    }catch(err){
+      console.error(err);
+      alert('Could not load products.\n\n' + (err?.message || err));
     }
   })();
 
-    // promo
-    $('#applyPromo').addEventListener('click', ()=>{
-      const code = ($('#promoCode').value||'').trim().toUpperCase();
-      discount = (code === 'TAKE10') ? (subtotal * 0.10) : 0;
-      syncPrices();
-    });
+  // promo
+  $('#applyPromo').addEventListener('click', ()=>{
+    const code = ($('#promoCode').value||'').trim().toUpperCase();
+    discount = (code === 'TAKE10') ? (subtotal * 0.10) : 0;
+    syncPrices();
+  });
 
-    // shipping selection
-    $$('input[name="ship"]').forEach(r=>{
-      r.addEventListener('change', ()=>{
-        shipMethod = r.value;
-        setShippingBySelections();
+  // shipping selection
+  $$('input[name="ship"]').forEach(r=>{
+    r.addEventListener('change', ()=>{
+      shipMethod = r.value;
+      setShippingBySelections();
+    });
+  });
+
+  // payment selection
+  $$('input[name="pay"]').forEach(r=>{
+    r.addEventListener('change', ()=>{
+      payMethod = r.value;
+      setShippingBySelections();
+    });
+  });
+
+  function renderReview(){
+    if (currentStep !== 3) return;
+    const f = $('#checkoutForm');
+    const data = Object.fromEntries(new FormData(f));
+    const lines = [
+      `<b>Ship to:</b> ${[data.name, data.address, data.city, data.zip, data.country].filter(Boolean).join(', ')}`,
+      `<b>Email:</b> ${data.email || ''}`,
+      data.phone ? `<b>Phone:</b> ${data.phone}` : '',
+      `<b>Shipping:</b> ${shipMethod === 'express' ? 'Express' : 'Standard'}`,
+      `<b>Payment:</b> ${payMethod.toUpperCase()}`,
+      data.notes ? `<b>Notes:</b> ${data.notes}` : ''
+    ].filter(Boolean);
+    $('#reviewBlock').innerHTML = lines.map(x=>`<div>${x}</div>`).join('');
+  }
+
+  // ===== SUBMIT -> STRIPE SESSION =====
+  $('#checkoutForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    for (let i=0;i<3;i++){ if (!validateStep(i)) { showStep(i); return; } }
+
+    const data = Object.fromEntries(new FormData(e.target));
+    const items = Object.keys(cartObj).map(id => ({ id, qty: cartObj[id] }));
+
+    try {
+      const r = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({
+          items,
+          meta: {
+            name: data.name,
+            email: data.email,
+            address: data.address,
+            city: data.city,
+            zip: data.zip,
+            country: data.country,
+            notes: data.notes || ''
+          }
+        })
       });
-    });
-
-    // payment selection
-    $$('input[name="pay"]').forEach(r=>{
-      r.addEventListener('change', ()=>{
-        payMethod = r.value;
-        setShippingBySelections();
-      });
-    });
-
-    function renderReview(){
-      if (currentStep !== 3) return;
-      const f = $('#checkoutForm');
-      const data = Object.fromEntries(new FormData(f));
-      const lines = [
-        `<b>Ship to:</b> ${[data.name, data.address, data.city, data.zip, data.country].filter(Boolean).join(', ')}`,
-        `<b>Email:</b> ${data.email || ''}`,
-        data.phone ? `<b>Phone:</b> ${data.phone}` : '',
-        `<b>Shipping:</b> ${shipMethod === 'express' ? 'Express' : 'Standard'}`,
-        `<b>Payment:</b> ${payMethod.toUpperCase()}`,
-        data.notes ? `<b>Notes:</b> ${data.notes}` : ''
-      ].filter(Boolean);
-      $('#reviewBlock').innerHTML = lines.map(x=>`<div>${x}</div>`).join('');
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || 'Failed to create checkout session');
+      window.location.href = j.url;
+    } catch (err) {
+      alert('Checkout error: ' + (err?.message || err));
+      console.error(err);
     }
+  });
 
-    // ===== SUBMIT -> STRIPE SESSION =====
-    $('#checkoutForm').addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      for (let i=0;i<3;i++){ if (!validateStep(i)) { showStep(i); return; } }
+  // year & start
+  $('#year').textContent = new Date().getFullYear();
+  showStep(0);
+</script>
 
-      const data = Object.fromEntries(new FormData(e.target));
-      const items = Object.keys(cartMap).map(id => ({ id, qty: cartMap[id] }));
-
-      try {
-        const r = await fetch('/api/create-checkout-session', {
-          method: 'POST',
-          headers: { 'Content-Type':'application/json' },
-          body: JSON.stringify({
-            items,
-            meta: {
-              name: data.name,
-              email: data.email,
-              address: data.address,
-              city: data.city,
-              zip: data.zip,
-              country: data.country,
-              notes: data.notes || ''
-            }
-          })
-        });
-        const j = await r.json();
-        if (!r.ok) throw new Error(j.error || 'Failed to create checkout session');
-        window.location.href = j.url; // Stripe Checkout
-      } catch (err) {
-        alert('Checkout error: ' + err.message);
-        console.error(err);
-      }
-    });
-
-    // year & start
-    $('#year').textContent = new Date().getFullYear();
-    showStep(0);
-  </script>
 </body>
 </html>
