@@ -1,0 +1,78 @@
+{
+  "timestamp": "2025-10-07T19:02:41.443613Z",
+  "project": {
+    "name": "site-template",
+    "hosting": "vercel",
+    "static": true,
+    "buildCommand": null,
+    "env": [
+      "STRIPE_SECRET_KEY"
+    ],
+    "routes": {
+      "catalog": "/api/catalog",
+      "checkoutSession": "/api/create-checkout-session",
+      "admin": "/pages/admin.html",
+      "checkout": "/pages/checkout.html",
+      "home": "/index.html"
+    },
+    "files": [
+      "index.html",
+      "app.js",
+      "styles.css",
+      "products.json",
+      "pages/checkout.html",
+      "pages/admin.html",
+      "api/catalog.js",
+      "api/create-checkout-session.js",
+      "vercel.json"
+    ]
+  },
+  "admin": {
+    "saveStrategy": "download-products.json-and-commit",
+    "validation": {
+      "id": "required, unique, no spaces",
+      "price": "number >= 0",
+      "stripePrice": "optional; if present must start with 'price_'"
+    }
+  },
+  "stripe": {
+    "mode": "checkout",
+    "shipping": {
+      "standardEUR": "0 or 5 based on threshold",
+      "expressEUR": 9.9,
+      "freeThresholdEUR": 65
+    },
+    "successUrl": "/pages/thank-you.html",
+    "cancelUrl": "/pages/cancel.html"
+  },
+  "phase2": {
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "colorTokens": [
+      "--brand",
+      "--brand-600",
+      "--bg",
+      "--text",
+      "--muted"
+    ],
+    "components": [
+      "header",
+      "product-card",
+      "badge",
+      "hero",
+      "inputs",
+      "radio-card",
+      "stepper",
+      "summary-card",
+      "buttons"
+    ],
+    "extras": [
+      "product-detail",
+      "collection-filters",
+      "empty-states",
+      "toasts"
+    ]
+  }
+}
